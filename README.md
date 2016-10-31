@@ -1,1 +1,1 @@
-A python webapp for daily recording and analysis.
+A python webapp for daily stock recording and analysis.
