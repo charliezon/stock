@@ -60,3 +60,4 @@ class Stock(Model):
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
     stock_id = StringField(ddl='varchar(50)')
     stock_name = StringField(ddl='varchar(50)')
+    created_at = FloatField(default=time.time)
