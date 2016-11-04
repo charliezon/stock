@@ -46,18 +46,11 @@ class StockHoldRecord(Model):
 
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
     account_record_id = StringField(ddl='varchar(50)')
-    stock_id = StringField(ddl='varchar(50)')
+    stock_code = StringField(ddl='varchar(50)')
+    stock_name = StringField(ddl='varchar(50)')
     stock_amount = IntegerField()
     stock_current_price = FloatField()
     stock_buy_price = FloatField()
     stock_sell_price = FloatField()
     stock_buy_date = FloatField(default=time.time)
-    created_at = FloatField(default=time.time)
-
-class Stock(Model):
-    __table__ = 'stocks'
-
-    id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
-    stock_id = StringField(ddl='varchar(50)')
-    stock_name = StringField(ddl='varchar(50)')
     created_at = FloatField(default=time.time)
