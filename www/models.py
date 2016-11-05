@@ -54,3 +54,13 @@ class StockHoldRecord(Model):
     stock_sell_price = FloatField()
     stock_buy_date = FloatField(default=time.time)
     created_at = FloatField(default=time.time)
+
+class AccountAssetChange(Model):
+    __table__ = 'account_asset_change'
+
+    id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
+    account_id = StringField(ddl='varchar(50)')
+    asset_change = FloatField()
+    add_or_minus = BooleanField()
+    change_date = FloatField()
+    created_at = FloatField(default=time.time)

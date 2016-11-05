@@ -60,3 +60,14 @@ create table stock_hold_records (
     key `idx_created_at` (`created_at`),
     primary key (`id`)
 ) engine=innodb default charset=utf8;
+
+create table account_asset_change (
+    `id` varchar(50) not null,
+    `account_id` varchar(50) not null,
+    `asset_change` real not null,
+    `add_or_minus` bool null,
+    `change_date` real not null,
+    `created_at` real not null,
+    key `idx_created_at` (`created_at`),
+    primary key (`id`)
+) engine=innodb default charset=utf8;
