@@ -1,6 +1,6 @@
 -- schema.sql
 
-# mysql -uroot -p < schema.sql
+-- mysql -uroot -p < schema.sql
 
 drop database if exists stock;
 
