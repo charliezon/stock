@@ -20,10 +20,18 @@
         <div class="uk-container uk-container-center">
             <a href="/" class="uk-navbar-brand">Stock</a>
             <ul class="uk-navbar-nav">
-                <li><a href="/"> 切换账户</a></li>
-                <li><a href="/"> 创建账户</a></li>
+                <li class="uk-parent" data-uk-dropdown>
+                    <a href="#0"><i class="uk-icon-book"></i> 切换账户</a>
+                    <div class="uk-dropdown uk-dropdown-navbar">
+                        <ul class="uk-nav uk-nav-navbar">
+                            <li><a href="/"><i class="uk-icon-credit-card"></i> 账户一</a></li>
+                            <li><a href="/"><i class="uk-icon-credit-card"></i> 账户二</a></li>
+                        </ul>
+                    </div>
+                </li>
+                <li><a href="/"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                 {% if user and user.admin %}
-                    <li><a href="/"> 参数统计</a></li>
+                    <li><a href="/"><i class="uk-icon-pencil-square"></i> 参数统计</a></li>
                 {% endif %}
             </ul>
             <div class="uk-navbar-flip">
@@ -34,7 +42,7 @@
                         <div class="uk-dropdown uk-dropdown-navbar">
                             <ul class="uk-nav uk-nav-navbar">
                                 {% if user.admin %}
-                                    <li><a href="/manage">管理</a></li>
+                                    <li><a href="/manage"><i class="uk-icon-cog"></i> 管理</a></li>
                                 {% endif %}
                                 <li><a href="/signout"><i class="uk-icon-sign-out"></i> 登出</a></li>
                             </ul>
