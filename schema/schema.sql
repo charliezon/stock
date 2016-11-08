@@ -38,6 +38,7 @@ create table account_records (
     `market_condition` int(2) not null,
     `stock_position` real not null,
     `available_funding` real not null,
+    `bank_funding` real not null,
     `total_stock_value` real not null,
     `total_assets` real not null,
     `float_profit_lost` real not null,

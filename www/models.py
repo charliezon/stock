@@ -42,6 +42,7 @@ class AccountRecord(Model):
     market_condition = IntegerField()
     stock_position = FloatField()
     available_funding = FloatField()
+    bank_funding = FloatField()
     total_stock_value = FloatField()
     total_assets = FloatField()
     float_profit_lost = FloatField()
