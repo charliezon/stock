@@ -1,0 +1,94 @@
+{% extends '__base__.html' %}
+
+{% block title %}创建账户{% endblock %}
+
+{% block beforehead %}
+<script>
+
+var
+    ID = '{{ id }}',
+    action = '{{ action }}';
+
+function initVM(account) {
+    var vm = new Vue({
+        el: '#vm',
+        data: account,
+        methods: {
+            submit: function (event) {
+                event.preventDefault();
+                var $form = $('#vm').find('form');
+                $form.postJSON(action, this.$data, function (err, r) {
+                    if (err) {
+                        $form.showFormError(err);
+                    }
+                    else {
+                        return location.assign('/api/accounts/' + r.id);
+                    }
+                });
+            }
+        }
+    });
+    $('#vm').show();
+}
+
+$(function () {
+    if (ID) {
+        getJSON('/api/accounts/' + ID, function (err, account) {
+            if (err) {
+                return fatal(err);
+            }
+            $('#loading').hide();
+            initVM(account);
+        });
+    }
+    else {
+        $('#loading').hide();
+        initVM({
+            name: '',
+            commission_rate: '',
+            initial_funding: ''
+        });
+    }
+});
+
+</script>
+{% endblock %}
+
+{% block content %}
+
+    <div id="error" class="uk-width-1-1">
+    </div>
+
+    <div id="loading" class="uk-width-1-1 uk-text-center">
+        <span><i class="uk-icon-spinner uk-icon-medium uk-icon-spin"></i> 正在加载...</span>
+    </div>
+
+    <div id="vm" class="uk-width-1-1">
+        <form v-on="submit: submit" class="uk-form uk-form-stacked">
+            <div class="uk-alert uk-alert-danger uk-hidden"></div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">账户名称:</label>
+                <div class="uk-form-controls">
+                    <input v-model="name" name="name" type="text" placeholder="账户名称" class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">手续费率:</label>
+                <div class="uk-form-controls">
+                    <input v-model="commission_rate" name="commission_rate" type="text" placeholder="手续费率" class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label">初始资金:</label>
+                <div class="uk-form-controls">
+                    <input v-model="initial_funding" name="initial_funding" type="text" placeholder="初始资金" class="uk-width-1-1">
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-save"></i> 保存</button>
+                <a href="/" class="uk-button"><i class="uk-icon-times"></i> 取消</a>
+            </div>
+        </form>
+    </div>
+
+{% endblock %}

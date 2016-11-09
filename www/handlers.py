@@ -11,7 +11,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, next_id
+from models import User, Account, next_id
 from config import configs
 
 COOKIE_NAME = 'stocksession'
@@ -106,6 +106,12 @@ def signout(request):
     r.set_cookie(COOKIE_NAME, '-deleted-', max_age=0, httponly=True)
     logging.info('user signed out.')
     return r
+
+@get('/account/create')
+def create_account():
+    return {
+        '__template__': 'create_account.html'
+    }
 
 _RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
