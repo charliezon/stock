@@ -16,6 +16,7 @@ create table users (
     `name` varchar(50) not null,
     `image` varchar(500) not null,
     `created_at` real not null,
+    unique key `idx_name` (`name`),
     unique key `idx_email` (`email`),
     key `idx_created_at` (`created_at`),
     primary key (`id`)
