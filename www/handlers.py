@@ -110,7 +110,9 @@ def signout(request):
     return r
 
 @get('/account/create')
-def create_account():
+def create_account(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
     return {
         '__template__': 'create_account.html',
         'action': '/api/accounts'
@@ -153,9 +155,15 @@ def check_admin(request):
 def has_logged_in(request):
     return not request.__user__ is None
 
+def must_log_in(request):
+    if not has_logged_in(request):
+        raise APIPermissionError()
+    else:
+        pass
+
 @asyncio.coroutine
 @get('/account/{id}')
-async def get_account(id):
+async def get_account(request, *, id):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
     account = await Account.find(id)
@@ -166,13 +174,15 @@ async def get_account(id):
 
 @asyncio.coroutine
 @get('/api/accounts/{id}')
-async def api_get_account(*, id):
+async def api_get_account(request, *, id):
+    must_log_in(request)
     account = await Account.find(id)
     return account
 
 @asyncio.coroutine
 @post('/api/accounts')
 async def api_create_account(request, *, name, commission_rate, initial_funding):
+    must_logg_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
     accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
