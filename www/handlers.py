@@ -57,6 +57,8 @@ async def cookie2user(cookie_str):
 
 @get('/')
 def index(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
     return {
         '__template__': 'account.html'
     }
@@ -148,9 +150,14 @@ def check_admin(request):
     if request.__user__ is None or not request.__user__.admin:
         raise APIPermissionError()
 
+def has_logged_in(request):
+    return not request.__user__ is None
+
 @asyncio.coroutine
 @get('/account/{id}')
 async def get_account(id):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
     account = await Account.find(id)
     return {
         '__template__': 'account.html',
