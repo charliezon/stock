@@ -166,10 +166,15 @@ def must_log_in(request):
 async def get_account(request, *, id):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
-    account = await Account.find(id)
+    accounts = await Account.findAll('id=? and user_id=?', [id, request.__user__.id])
+    if (len(accounts) <= 0):
+        raise APIPermissionError()
+    account = accounts[0]
+    accounts = await Account.findAll('user_id=?', [request.__user__.id])
     return {
         '__template__': 'account.html',
-        'account': account
+        'account': account,
+        'accounts': accounts
     }
 
 @asyncio.coroutine
