@@ -110,7 +110,8 @@ def signout(request):
 @get('/account/create')
 def create_account():
     return {
-        '__template__': 'create_account.html'
+        '__template__': 'create_account.html',
+        'action': '/api/accounts'
     }
 
 _RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
@@ -142,3 +143,42 @@ async def api_register_user(*, email, name, passwd):
     r.content_type = 'application/json'
     r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
     return r
+
+def check_admin(request):
+    if request.__user__ is None or not request.__user__.admin:
+        raise APIPermissionError()
+
+@asyncio.coroutine
+@get('/account/{id}')
+async def get_account(id):
+    account = await Account.find(id)
+    return {
+        '__template__': 'account.html',
+        'account': account
+    }
+
+@asyncio.coroutine
+@get('/api/accounts/{id}')
+async def api_get_account(*, id):
+    account = await Account.find(id)
+    return account
+
+@asyncio.coroutine
+@post('/api/accounts')
+async def api_create_account(request, *, name, commission_rate, initial_funding):
+    if not name or not name.strip():
+        raise APIValueError('name', '账户名称不能为空')
+    accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
+    if len(accounts) > 0:
+        raise APIValueError('name', '账户名称已被用')
+    try:
+        commission_rate = float(commission_rate)
+    except ValueError as e:
+        raise APIValueError('commission_rate', '手续费率填写不正确')
+    try:
+        initial_funding = float(initial_funding)
+    except ValueError as e:
+        raise APIValueError('initial_funding', '初始资金填写不正确')
+    account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+    await account.save()
+    return account

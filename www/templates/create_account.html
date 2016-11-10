@@ -6,7 +6,6 @@
 <script>
 
 var
-    ID = '{{ id }}',
     action = '{{ action }}';
 
 function initVM(account) {
@@ -22,7 +21,7 @@ function initVM(account) {
                         $form.showFormError(err);
                     }
                     else {
-                        return location.assign('/api/accounts/' + r.id);
+                        return location.assign('/account/' + r.id);
                     }
                 });
             }
@@ -32,23 +31,12 @@ function initVM(account) {
 }
 
 $(function () {
-    if (ID) {
-        getJSON('/api/accounts/' + ID, function (err, account) {
-            if (err) {
-                return fatal(err);
-            }
-            $('#loading').hide();
-            initVM(account);
-        });
-    }
-    else {
-        $('#loading').hide();
-        initVM({
-            name: '',
-            commission_rate: '',
-            initial_funding: ''
-        });
-    }
+    $('#loading').hide();
+    initVM({
+        name: '',
+        commission_rate: 0.0002,
+        initial_funding: 0
+    });
 });
 
 </script>
