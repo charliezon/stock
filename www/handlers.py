@@ -59,9 +59,7 @@ async def cookie2user(cookie_str):
 def index(request):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
-    return {
-        '__template__': 'account.html'
-    }
+    return web.HTTPFound('/account')
 
 @get('/register')
 def register():
@@ -162,19 +160,38 @@ def must_log_in(request):
         pass
 
 @asyncio.coroutine
+@get('/account')
+async def get_default_account(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    if (len(all_accounts) > 0):
+        account = all_accounts[0]
+    else:
+        raise APIPermissionError()
+    return {
+        '__template__': 'account.html',
+        'account': account,
+        'accounts': all_accounts
+    }
+
+@asyncio.coroutine
 @get('/account/{id}')
 async def get_account(request, *, id):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
     accounts = await Account.findAll('id=? and user_id=?', [id, request.__user__.id])
-    if (len(accounts) <= 0):
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    if (len(accounts) > 0):
+        account = accounts[0]
+    elif (len(all_accounts) > 0):
+        account = all_accounts[0]
+    else:
         raise APIPermissionError()
-    account = accounts[0]
-    accounts = await Account.findAll('user_id=?', [request.__user__.id])
     return {
         '__template__': 'account.html',
         'account': account,
-        'accounts': accounts
+        'accounts': all_accounts
     }
 
 @asyncio.coroutine

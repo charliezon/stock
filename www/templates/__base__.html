@@ -21,15 +21,18 @@
             <a href="/" class="uk-navbar-brand">Stock</a>
             {% if __user__ %}
                 <ul class="uk-navbar-nav">
+                    {% if accounts %}
                     <li class="uk-parent" data-uk-dropdown>
                         <a href="#0"><i class="uk-icon-book"></i> 切换账户</a>
                         <div class="uk-dropdown uk-dropdown-navbar">
                             <ul class="uk-nav uk-nav-navbar">
-                                <li><a href="/"><i class="uk-icon-credit-card"></i> 账户一</a></li>
-                                <li><a href="/"><i class="uk-icon-credit-card"></i> 账户二</a></li>
+                                {% for acc in accounts %}
+                                    <li><a href="/account/{{acc.id}}"><i class="uk-icon-credit-card"></i>  {{acc.name}}</a></li>
+                                {% endfor %}
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
                     <li><a href="/"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}
