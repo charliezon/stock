@@ -182,7 +182,7 @@ async def api_get_account(request, *, id):
 @asyncio.coroutine
 @post('/api/accounts')
 async def api_create_account(request, *, name, commission_rate, initial_funding):
-    must_logg_in(request)
+    must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
     accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
