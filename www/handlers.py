@@ -168,7 +168,7 @@ async def get_default_account(request):
     if (len(all_accounts) > 0):
         account = all_accounts[0]
     else:
-        raise APIPermissionError()
+        return web.HTTPFound('/account/create')
     return {
         '__template__': 'account.html',
         'account': account,
