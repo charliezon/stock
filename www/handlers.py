@@ -58,7 +58,9 @@ async def cookie2user(cookie_str):
 @get('/')
 def index(request):
     if not has_logged_in(request):
-        return web.HTTPFound('/signin')
+        return {
+            '__template__': 'index.html'
+        }
     return web.HTTPFound('/account')
 
 @get('/register')

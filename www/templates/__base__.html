@@ -33,7 +33,9 @@
                         </div>
                     </li>
                     {% endif %}
+                    {% if account %}
                     <li><a href="/"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
+                    {% endif %}
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}
                         <li><a href="/"><i class="uk-icon-pencil-square"></i> 参数统计</a></li>
@@ -55,7 +57,7 @@
                         </div>
                     </li>
                 {% else %}
-                    <li><a href="/signin"><i class="uk-icon-sign-in"></i> 登陆</a></li>
+                    <li><a href="/signin"><i class="uk-icon-sign-in"></i> 登录</a></li>
                     <li><a href="/register"><i class="uk-icon-edit"></i> 注册</a></li>
                 {% endif %}
                 </ul>
