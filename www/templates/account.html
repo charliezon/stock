@@ -74,89 +74,53 @@
                         <th>股票</th>
                         <th>数量</th>
                         <th>价格</th>
+                        <th>股票</th>
+                        <th>数量</th>
+                        <th>价格</th>
+                        <th>股票</th>
+                        <th>数量</th>
+                        <th>价格</th>
+                        <th>股票</th>
+                        <th>数量</th>
+                        <th>价格</th>
+                        <th>股票</th>
+                        <th>数量</th>
+                        <th>价格</th>
+                        <th>股票</th>
+                        <th>数量</th>
+                        <th>价格</th>
+                        <th>股票</th>
+                        <th>数量</th>
+                        <th>价格</th>
                         <th>总资产</th>
                         <th>总市值</th>
                         <th>银证资金</th>
                         <th>银行资金</th>
+                        <th>浮动盈亏</th>
+                        <th>仓位</th>
                         <th>本金</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>2016-11-07</td>
-                        <td>牛</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>2016-11-08</td>
-                        <td>熊</td>
-                        <td>1000000</td>
-                        <td>1000000</td>
-                        <td>1000000</td>
-                        <td>1000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>1000000</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
-                    <tr>
-                        <td>2016-11-09</td>
-                        <td>牛</td>
-                        <td>10000000</td>
-                        <td>1000000</td>
-                        <td>1000000</td>
-                        <td>1000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>10000000</td>
-                        <td>1000000</td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
+                    {% for account_record in all_account_records %}
+                        <tr>
+                            <td>{{ account_record.date }}</td>
+                            <td>牛</td>
+                            <td>{{ account_record.total_profit }}</td>
+                            {% for stock in account_record.stock_hold_records %}
+                                <td>{{ stock.stock_name }}</td>
+                                <td>{{stock.stock_amount}}</td>
+                                <td>{{stock.stock_current_price}}</td>
+                            {% endfor %}
+                            <td>{{account_record.total_assets}}</td>
+                            <td>{{account_record.total_stock_value}}</td>
+                            <td>{{account_record.security_funding}}</td>
+                            <td>{{account_record.bank_funding}}</td>
+                            <td>{{account_record.float_profit_lost}}</td>
+                            <td>{{account_record.stock_position*100}}%</td>
+                            <td>{{account_record.principle}}</td>
+                        </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>

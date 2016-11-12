@@ -11,7 +11,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, next_id
+from models import User, Account, AccountRecord, StockHoldRecord, next_id
 from config import configs
 
 COOKIE_NAME = 'stocksession'
@@ -191,12 +191,19 @@ async def get_account(request, *, id):
         account = all_accounts[0]
     else:
         raise APIPermissionError()
-    most_recent_account_records = await AccountRecord.findAll('account_id=?', [id], orderBy='date desc', limit=1)
+    all_account_records = await AccountRecord.findAll('account_id=?', [id], orderBy='date desc')
+    for account_record in all_account_records:
+        stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
+        if len(stock_hold_records)<10:
+            for x in range(10-len(stock_hold_records)):
+                stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0})
+        account_record.stock_hold_records = stock_hold_records[:10]
     return {
         '__template__': 'account.html',
         'account': account,
         'accounts': all_accounts,
-        'most_recent_account_record': most_recent_account_records[0]
+        'most_recent_account_record': all_account_records[0],
+        'all_account_records': all_account_records
     }
 
 @asyncio.coroutine
