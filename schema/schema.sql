@@ -22,6 +22,12 @@ create table users (
     primary key (`id`)
 ) engine=innodb default charset=utf8;
 
+create table market_state (
+    `date` varchar(50) not null,
+    `market_state` int(10) not null,
+    primary key (`date`)
+) engine=innodb default charset=utf8;
+
 create table accounts (
     `id` varchar(50) not null,
     `user_id` varchar(50) not null,
@@ -35,10 +41,10 @@ create table accounts (
 
 create table account_records (
     `id` varchar(50) not null,
+    `date` varchar(50) not null,
     `account_id` varchar(50) not null,
-    `market_condition` int(2) not null,
     `stock_position` real not null,
-    `available_funding` real not null,
+    `security_funding` real not null,
     `bank_funding` real not null,
     `total_stock_value` real not null,
     `total_assets` real not null,
@@ -59,7 +65,7 @@ create table stock_hold_records (
     `stock_current_price` real not null,
     `stock_buy_price` real not null,
     `stock_sell_price` real not null,
-    `stock_buy_date` real not null,
+    `stock_buy_date` varchar(50) not null,
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)
@@ -68,9 +74,10 @@ create table stock_hold_records (
 create table account_asset_change (
     `id` varchar(50) not null,
     `account_id` varchar(50) not null,
-    `asset_change` real not null,
+    `change_amount` real not null,
     `add_or_minus` bool null,
-    `change_date` real not null,
+    `security_or_bank` bool null,
+    `date` varchar(50) not null,
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)

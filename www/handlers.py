@@ -11,7 +11,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, next_id
+from models import User, Account, AccountRecord, next_id
 from config import configs
 
 COOKIE_NAME = 'stocksession'
@@ -169,13 +169,14 @@ async def get_default_account(request):
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
     if (len(all_accounts) > 0):
         account = all_accounts[0]
+        return web.HTTPFound('/account/'+account.id)
     else:
         return web.HTTPFound('/account/create')
-    return {
-        '__template__': 'account.html',
-        'account': account,
-        'accounts': all_accounts
-    }
+
+@asyncio.coroutine
+@get('/account/')
+async def get_account_index(request):
+    return web.HTTPFound('/account')
 
 @asyncio.coroutine
 @get('/account/{id}')
@@ -190,10 +191,12 @@ async def get_account(request, *, id):
         account = all_accounts[0]
     else:
         raise APIPermissionError()
+    most_recent_account_records = await AccountRecord.findAll('account_id=?', [id], orderBy='date desc', limit=1)
     return {
         '__template__': 'account.html',
         'account': account,
-        'accounts': all_accounts
+        'accounts': all_accounts,
+        'most_recent_account_record': most_recent_account_records[0]
     }
 
 @asyncio.coroutine
@@ -222,4 +225,10 @@ async def api_create_account(request, *, name, commission_rate, initial_funding)
         raise APIValueError('initial_funding', '初始资金填写不正确')
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
+    try:
+        account_record = AccountRecord(account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+        await account_record.save()
+    except Error as e:
+        account.remove()
+        raise APIValueError('name', '创建账户失败')
     return account

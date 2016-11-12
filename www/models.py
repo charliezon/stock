@@ -13,6 +13,9 @@ from orm import Model, StringField, BooleanField, FloatField, IntegerField
 def next_id():
     return '%015d%s000' % (int(time.time() * 1000), uuid.uuid4().hex)
 
+def today():
+    return time.strftime("%Y-%m-%d", time.localtime())
+
 class User(Model):
     __table__ = 'users'
 
@@ -23,6 +26,12 @@ class User(Model):
     name = StringField(ddl='varchar(50)')
     image = StringField(ddl='varchar(500)')
     created_at = FloatField(default=time.time)
+
+class MarketState(Model):
+    __table__ = 'market_state'
+
+    date = StringField(primary_key=True, default=today, ddl='varchar(50)')
+    market_state  = IntegerField()
 
 class Account(Model):
     __table__ = 'accounts'
@@ -38,10 +47,10 @@ class AccountRecord(Model):
     __table__ = 'account_records'
 
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
+    date = StringField(default=today, ddl='varchar(50)')
     account_id = StringField(ddl='varchar(50)')
-    market_condition = IntegerField()
     stock_position = FloatField()
-    available_funding = FloatField()
+    security_funding = FloatField()
     bank_funding = FloatField()
     total_stock_value = FloatField()
     total_assets = FloatField()
@@ -61,7 +70,7 @@ class StockHoldRecord(Model):
     stock_current_price = FloatField()
     stock_buy_price = FloatField()
     stock_sell_price = FloatField()
-    stock_buy_date = FloatField(default=time.time)
+    stock_buy_date = StringField(default=today, ddl='varchar(50)')
     created_at = FloatField(default=time.time)
 
 class AccountAssetChange(Model):
@@ -69,7 +78,8 @@ class AccountAssetChange(Model):
 
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
     account_id = StringField(ddl='varchar(50)')
-    asset_change = FloatField()
+    change_amount = FloatField()
     add_or_minus = BooleanField()
-    change_date = FloatField()
+    security_or_bank = BooleanField()
+    date = StringField(default=today, ddl='varchar(50)')
     created_at = FloatField(default=time.time)

@@ -15,14 +15,17 @@
             <div class="uk-panel uk-panel-box">
                 <h3 class="uk-panel-title"><strong>账户信息</strong></h3>
                 <ul>
+                    {% if most_recent_account_record and account %}
                     <li>名称：{{account.name}}</li>
-                    <li>仓位：50%</li>
-                    <li>可用：100000</li>
-                    <li>总市值：1000000</li>
-                    <li>总资产：1000000</li>
-                    <li>浮动盈亏：1000000</li>
-                    <li>利润：1000000</li>
-                    <li>本金：1000000</li>
+                    <li>仓位：{{most_recent_account_record.stock_position*100}}%</li>
+                    <li>银证资金：{{most_recent_account_record.security_funding}}</li>
+                    <li>银行资金：{{most_recent_account_record.bank_funding}}</li>
+                    <li>总市值：{{most_recent_account_record.total_stock_value}}</li>
+                    <li>总资产：{{most_recent_account_record.total_assets}}</li>
+                    <li>浮动盈亏：{{most_recent_account_record.float_profit_lost}}</li>
+                    <li>利润：{{most_recent_account_record.total_profit}}</li>
+                    <li>本金：{{most_recent_account_record.principle}}</li>
+                    {% endif %}
                 <ul>
             </div>
         </div>
@@ -43,7 +46,10 @@
         <div class="uk-width-1-1">
             <button class="uk-button" type="button">买入</button>
             <button class="uk-button" type="button">卖出</button>
-            <button class="uk-button" type="button">资金增减</button>
+            <button class="uk-button" type="button">增加银行资金</button>
+            <button class="uk-button" type="button">减少银行资金</button>
+            <button class="uk-button" type="button">转入银证资金</button>
+            <button class="uk-button" type="button">转出银证资金</button>
         </div>
     </div>
 
