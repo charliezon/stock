@@ -176,6 +176,11 @@ function toSmartDate(timestamp) {
     return s;
 }
 
+function getTodayString() {
+    var today = new Date();
+    return today.getFullYear()+'-'+today.getMonth()+'-'+today.getDate();
+}
+
 
 
 $(function() {
