@@ -202,7 +202,9 @@ async def get_account(request, *, id):
         'account': account,
         'accounts': all_accounts,
         'most_recent_account_record': all_account_records[0],
-        'all_account_records': all_account_records
+        'all_account_records': all_account_records,
+        'buy_action': '/api/buy',
+        'sell_action': '/api/sell'
     }
 
 @asyncio.coroutine
@@ -244,3 +246,89 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
         account.remove()
         raise APIValueError('name', '创建账户失败')
     return account
+
+@asyncio.coroutine
+@post('/api/buy')
+async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount, stock_date, account_id):
+    must_log_in(request)
+    if not stock_name or not stock_name.strip():
+        raise APIValueError('stock_name', '股票名称不能为空')
+    if not stock_code or not stock_code.strip():
+        raise APIValueError('stock_code', '股票代码不能为空')
+    try:
+        stock_price = float(stock_price)
+    except ValueError as e:
+        raise APIValueError('stock_price', '股票价格填写不正确')
+    if stock_price<=0:
+        raise APIValueError('stock_price', '股票价格必须大于0')
+    try:
+        stock_amount = int(stock_amount)
+    except ValueError as e:
+        raise APIValueError('stock_amount', '股票数量填写不正确')
+    if stock_amount <=  0:
+        raise APIValueError('stock_amount', '股票数量必须大于0')
+    if stock_amount % 100 != 0:
+        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+    if stock_date is None:
+        raise APIValueError('stock_date', '日期不能为空')
+    if stock_date.strip() == '':
+        raise APIValueError('stock_date', '请选择日期')
+    if stock_date.strip() > today():
+        raise APIValueError('stock_date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    all_account_records = await AccountRecord.findAll('account_id=? and date=?', [account_id, stock_date.strip()])
+    if len(all_account_records) <=0:
+        pre_account_records = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date desc', limit=1)
+        if len(pre_account_records) <=0:
+            raise APIPermissionError()
+        try:
+            account_record = AccountRecord(
+                date=stock_date.strip(), 
+                account_id=account_id, 
+                stock_position=pre_account_records[0].stock_position, 
+                security_funding=pre_account_records[0].security_funding, 
+                bank_funding=pre_account_records[0].bank_funding, 
+                total_stock_value=pre_account_records[0].total_stock_value, 
+                total_assets=pre_account_records[0].total_assets, 
+                float_profit_lost=pre_account_records[0].float_profit_lost, 
+                total_profit=pre_account_records[0].total_profit, 
+                principle=pre_account_records[0].principle)
+            await account_record.save()
+        except Error as e:
+            raise APIValueError('stock_name', '买入失败')
+    else:
+        account_record = all_account_records[0]
+
+    yinhuashui = 0
+    guohufei = 0
+    if not (stock_code[:1] == '0' or stock_code[:1] == '3'):
+        guohufei = stock_amount * configs.stock.guohu_rate;
+    yongjin = stock_amount * stock_price * accounts[0].commission_rate
+    if yongjin < 5:
+        yongjin = 5
+
+    money = stock_amount * stock_price + yongjin + guohufei
+    if money > account_record.security_funding:
+        raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
+
+    account_record.security_funding = account_record.security_funding - money
+    await account_record.save()
+    
+
+
+    return accounts[0]
+
+
+    # account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+    # await account.save()
+    # try:
+    #     account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+    #     await account_record.save()
+    # except Error as e:
+    #     account.remove()
+    #     raise APIValueError('name', '创建账户失败')
+    # return account

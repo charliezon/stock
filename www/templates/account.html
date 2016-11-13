@@ -5,6 +5,64 @@
 {% block beforehead %}
 
 <script>
+
+var
+    buy_action = '{{ buy_action }}',
+    buy_vm;
+
+
+$(document).ready(function(){
+
+    buy_vm = initVM({
+        stock_name: '',
+        stock_code: '',
+        stock_price: 0,
+        stock_amount: 0,
+        stock_date: getTodayString()
+    },
+    buy_action,
+    '#vm_buy',
+    '#buy_stock_date');
+
+    $("#buy_button").click(
+        function() {
+            buy_vm.stock_name='';
+            buy_vm.stock_code='';
+            buy_vm.stock_price=0;
+            buy_vm.stock_amount=0;
+            buy_vm.stock_date=getTodayString();
+        });
+});
+
+
+
+function initVM(data, action, vm_element, date_element) {
+    return new Vue({
+        el: vm_element,
+        data: data,
+        methods: {
+            submit: function (event) {
+                this.$data.stock_date = $(date_element).val();
+                this.$data.account_id = "{{ account.id }}";
+                event.preventDefault();
+                var $form = $(vm_element);
+                $form.postJSON(action, this.$data, function (err, r) {
+                    if (err) {
+                        $form.showFormError(err);
+                    }
+                    else {
+                        return location.assign('/account/' + r.id);
+                    }
+                });
+            }
+        }
+    });
+}
+
+
+
+
+
 </script>
 
 {% endblock %}
@@ -44,7 +102,7 @@
 
     <div class="uk-grid">
         <div class="uk-width-1-1">
-            <button class="uk-button" data-uk-modal="{target:'#buy_modal'}">买入</button>
+            <button id="buy_button" class="uk-button" data-uk-modal="{target:'#buy_modal'}">买入</button>
             <div id="buy_modal" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -54,31 +112,31 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">名称:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_name" name="stock_name" type="text" placeholder="名称" class="uk-width-1-1">
+                                <input id="buy_stock_name" v-model="stock_name" name="stock_name" type="text" placeholder="名称" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">代码:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_code" name="stock_code" type="text" placeholder="代码" class="uk-width-1-1">
+                                <input id="buy_stock_code" v-model="stock_code" name="stock_code" type="text" placeholder="代码" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">价格:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_price" name="stock_price" type="text" placeholder="价格" class="uk-width-1-1">
+                                <input id="buy_stock_price" v-model="stock_price" name="stock_price" type="text" placeholder="价格" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">数量:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_amount" name="stock_amount" type="text" placeholder="数量" class="uk-width-1-1">
+                                <input id="buy_stock_amount" v-model="stock_amount" name="stock_amount" type="text" placeholder="数量" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_date" name="stock_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="buy_stock_date" v-model="stock_date" name="stock_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
