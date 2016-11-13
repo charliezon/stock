@@ -37,6 +37,7 @@ $(document).ready(function(){
             buy_vm.stock_price=0;
             buy_vm.stock_amount=0;
             buy_vm.date=getTodayString();
+            $("#buy_date").val(getTodayString());
         });
 
     sell_vm = initVM({
@@ -47,6 +48,7 @@ $(document).ready(function(){
         date: getTodayString()
     },
     sell_action,
+
     '#vm_sell',
     '#sell_date');
 
@@ -57,6 +59,7 @@ $(document).ready(function(){
             sell_vm.stock_price=0;
             sell_vm.stock_amount=0;
             sell_vm.date=getTodayString();
+            $("#sell_date").val(getTodayString());
         });
 
     add_security_funding_vm = initVM({
@@ -71,6 +74,7 @@ $(document).ready(function(){
         function() {
             add_security_funding_vm.funding_amount=0;
             add_security_funding_vm.date=getTodayString();
+            $("#add_security_funding_date").val(getTodayString());
         });
 
     minus_security_funding_vm = initVM({
@@ -85,6 +89,7 @@ $(document).ready(function(){
         function() {
             minus_security_funding_vm.funding_amount=0;
             minus_security_funding_vm.date=getTodayString();
+            $("#minus_security_funding_date").val(getTodayString());
         });
 
 });
@@ -202,7 +207,7 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#sell_modal'}">卖出</button>
+            <button id="sell_button" class="uk-button" data-uk-modal="{target:'#sell_modal'}">卖出</button>
             <div id="sell_modal" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
