@@ -11,7 +11,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, next_id
+from models import User, Account, AccountRecord, StockHoldRecord, next_id, today
 from config import configs
 
 COOKIE_NAME = 'stocksession'
@@ -214,7 +214,7 @@ async def api_get_account(request, *, id):
 
 @asyncio.coroutine
 @post('/api/accounts')
-async def api_create_account(request, *, name, commission_rate, initial_funding):
+async def api_create_account(request, *, name, commission_rate, initial_funding, date):
     must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
@@ -229,10 +229,16 @@ async def api_create_account(request, *, name, commission_rate, initial_funding)
         initial_funding = float(initial_funding)
     except ValueError as e:
         raise APIValueError('initial_funding', '初始资金填写不正确')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
     try:
-        account_record = AccountRecord(account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
         await account_record.save()
     except Error as e:
         account.remove()
