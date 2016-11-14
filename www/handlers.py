@@ -180,6 +180,20 @@ async def find_account_record(account_id, date):
                 total_profit=pre_account_records[0].total_profit, 
                 principle=pre_account_records[0].principle)
             await account_record.save()
+
+            stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
+            if len(stocks) > 0:
+                for stock in stocks:
+                    new_stock = StockHoldRecord(
+                        account_record_id=account_record.id,
+                        stock_code=stock.stock_code,
+                        stock_name=stock.stock_name,
+                        stock_amount=stock.stock_amount,
+                        stock_current_price=stock.stock_current_price,
+                        stock_buy_price=stock.stock_buy_price,
+                        stock_sell_price=stock.stock_sell_price,
+                        stock_buy_date=stock.stock_buy_date)
+                    await new_stock.save()
         except Error as e:
             raise APIPermissionError()
     else:
@@ -231,6 +245,8 @@ async def get_account(request, *, id):
         'all_account_records': all_account_records,
         'buy_action': '/api/buy',
         'sell_action': '/api/sell',
+        'add_bank_funding_action' : '/api/add_bank_funding',
+        'minus_bank_funding_action' : '/api/minus_bank_funding',
         'add_security_funding_action' : '/api/add_security_funding',
         'minus_security_funding_action' : '/api/minus_security_funding'
     }
@@ -336,9 +352,9 @@ async def api_add_security_funding(request, *, funding_amount, date, account_id)
     try:
         funding_amount = float(funding_amount)
     except ValueError as e:
-        raise APIValueError('funding_amount', '银证金额填写不正确')
+        raise APIValueError('funding_amount', '金额填写不正确')
     if funding_amount <=  0:
-        raise APIValueError('funding_amount', '银证金额必须大于0')
+        raise APIValueError('funding_amount', '金额必须大于0')
     if date is None:
         raise APIValueError('date', '日期不能为空')
     if date.strip() == '':
@@ -387,9 +403,9 @@ async def api_minus_security_funding(request, *, funding_amount, date, account_i
     try:
         funding_amount = float(funding_amount)
     except ValueError as e:
-        raise APIValueError('funding_amount', '银证金额填写不正确')
+        raise APIValueError('funding_amount', '金额填写不正确')
     if funding_amount <=  0:
-        raise APIValueError('funding_amount', '银证金额必须大于0')
+        raise APIValueError('funding_amount', '金额必须大于0')
     if date is None:
         raise APIValueError('date', '日期不能为空')
     if date.strip() == '':
@@ -423,6 +439,95 @@ async def api_minus_security_funding(request, *, funding_amount, date, account_i
         account_id=account_id,
         change_amount=funding_amount,
         add_or_minus=True,
+        security_or_bank=False,
+        date=date)
+
+    await bank_funding_change.save()
+
+    return accounts[0]
+
+@asyncio.coroutine
+@post('/api/add_bank_funding')
+async def api_add_bank_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount <=  0:
+        raise APIValueError('funding_amount', '金额必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    account_record.bank_funding = account_record.bank_funding + funding_amount
+    account_record.principle = account_record.principle + funding_amount
+    account_record.total_assets = account_record.total_assets + funding_amount
+    if account_record.total_assets > 0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    await account_record.update()
+
+    bank_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=True,
+        security_or_bank=False,
+        date=date)
+
+    await bank_funding_change.save()
+
+    return accounts[0]
+
+@asyncio.coroutine
+@post('/api/minus_bank_funding')
+async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount <=  0:
+        raise APIValueError('funding_amount', '金额必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    if (account_record.bank_funding < funding_amount):
+        raise APIValueError('funding_amount', '金额不足')
+
+    account_record.bank_funding = account_record.bank_funding - funding_amount
+    account_record.principle = account_record.principle - funding_amount
+    account_record.total_assets = account_record.total_assets - funding_amount
+    if account_record.total_assets > 0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    await account_record.update()
+
+    bank_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=False,
         security_or_bank=False,
         date=date)
 

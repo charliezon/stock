@@ -11,6 +11,12 @@ var
     buy_vm,
     sell_action = '{{ sell_action }}',
     sell_vm,
+
+    add_bank_funding_action = '{{ add_bank_funding_action }}',
+    add_bank_funding_vm,
+    minus_bank_funding_action = '{{ minus_bank_funding_action }}',
+    minus_bank_funding_vm,
+
     add_security_funding_action = '{{ add_security_funding_action }}',
     add_security_funding_vm,
     minus_security_funding_action = '{{ minus_security_funding_action }}',
@@ -60,6 +66,36 @@ $(document).ready(function(){
             sell_vm.stock_amount=0;
             sell_vm.date=getTodayString();
             $("#sell_date").val(getTodayString());
+        });
+
+    add_bank_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    add_bank_funding_action,
+    '#vm_add_bank_funding',
+    '#add_bank_funding_date');
+
+    $("#add_bank_funding_button").click(
+        function() {
+            add_bank_funding_vm.funding_amount=0;
+            add_bank_funding_vm.date=getTodayString();
+            $("#add_bank_funding_date").val(getTodayString());
+        });
+
+    minus_bank_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    minus_bank_funding_action,
+    '#vm_minus_bank_funding',
+    '#minus_bank_funding_date');
+
+    $("#minus_bank_funding_button").click(
+        function() {
+            minus_bank_funding_vm.funding_amount=0;
+            minus_bank_funding_vm.date=getTodayString();
+            $("#minus_bank_funding_date").val(getTodayString());
         });
 
     add_security_funding_vm = initVM({
@@ -252,7 +288,7 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#add_bank_funding'}">增加银行资金</button>
+            <button id="add_bank_funding_button" class="uk-button" data-uk-modal="{target:'#add_bank_funding'}">增加银行资金</button>
             <div id="add_bank_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -268,7 +304,7 @@ function initVM(data, action, vm_element, date_element) {
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_date" name="funding_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="add_bank_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -279,7 +315,7 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#minus_bank_funding'}">减少银行资金</button>
+            <button id="minus_bank_funding_button" class="uk-button" data-uk-modal="{target:'#minus_bank_funding'}">减少银行资金</button>
             <div id="minus_bank_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -295,7 +331,7 @@ function initVM(data, action, vm_element, date_element) {
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_date" name="funding_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="minus_bank_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
