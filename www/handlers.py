@@ -171,13 +171,13 @@ async def find_account_record(account_id, date):
             account_record = AccountRecord(
                 date=date, 
                 account_id=account_id, 
-                stock_position=pre_account_records[0].stock_position, 
+                stock_position=pre_account_records[0].stock_position,  # TODO 根据股票当前价更新
                 security_funding=pre_account_records[0].security_funding, 
                 bank_funding=pre_account_records[0].bank_funding, 
-                total_stock_value=pre_account_records[0].total_stock_value, 
-                total_assets=pre_account_records[0].total_assets, 
-                float_profit_lost=pre_account_records[0].float_profit_lost, 
-                total_profit=pre_account_records[0].total_profit, 
+                total_stock_value=pre_account_records[0].total_stock_value,  # TODO 根据股票当前价更新
+                total_assets=pre_account_records[0].total_assets,  # TODO 根据股票当前价更新
+                float_profit_lost=pre_account_records[0].float_profit_lost,  # TODO 根据股票当前价更新
+                total_profit=pre_account_records[0].total_profit,  # TODO 根据股票当前价更新
                 principle=pre_account_records[0].principle)
             await account_record.save()
 
@@ -189,7 +189,7 @@ async def find_account_record(account_id, date):
                         stock_code=stock.stock_code,
                         stock_name=stock.stock_name,
                         stock_amount=stock.stock_amount,
-                        stock_current_price=stock.stock_current_price,
+                        stock_current_price=stock.stock_current_price,  # TODO 更新当前价
                         stock_buy_price=stock.stock_buy_price,
                         stock_sell_price=stock.stock_sell_price,
                         stock_buy_date=stock.stock_buy_date)
@@ -339,7 +339,21 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
 
     account_record.security_funding = account_record.security_funding - money
+    # TODO 获取这天这股的收盘价 current_price
+    current_price = 0
+    account_record.total_stock_value = account_record.total_stock_value + stock_amount*current_price
+    account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
+    if account_record.total_assets >0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    account_record.total_profit = account_record.total_assets - account_record.principle
+    # TODO 根据各只股票的当前价计算
+    account_record.float_profit_lost = 0
+
     await account_record.update()
+
+    # stock hold record增加一条记录
     
     return accounts[0]
 
