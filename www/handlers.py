@@ -13,6 +13,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 
 from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today
 from config import configs
+from stock_info import get_current_price
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -171,29 +172,39 @@ async def find_account_record(account_id, date):
             account_record = AccountRecord(
                 date=date, 
                 account_id=account_id, 
-                stock_position=pre_account_records[0].stock_position,  # TODO 根据股票当前价更新
+                stock_position=pre_account_records[0].stock_position,
                 security_funding=pre_account_records[0].security_funding, 
                 bank_funding=pre_account_records[0].bank_funding, 
-                total_stock_value=pre_account_records[0].total_stock_value,  # TODO 根据股票当前价更新
-                total_assets=pre_account_records[0].total_assets,  # TODO 根据股票当前价更新
-                float_profit_lost=pre_account_records[0].float_profit_lost,  # TODO 根据股票当前价更新
-                total_profit=pre_account_records[0].total_profit,  # TODO 根据股票当前价更新
+                total_stock_value=pre_account_records[0].total_stock_value,
+                total_assets=pre_account_records[0].total_assets,
+                float_profit_lost=pre_account_records[0].float_profit_lost,
+                total_profit=pre_account_records[0].total_profit,
                 principle=pre_account_records[0].principle)
             await account_record.save()
 
             stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
             if len(stocks) > 0:
+                total_stock_value = 0
                 for stock in stocks:
                     new_stock = StockHoldRecord(
                         account_record_id=account_record.id,
                         stock_code=stock.stock_code,
                         stock_name=stock.stock_name,
                         stock_amount=stock.stock_amount,
-                        stock_current_price=stock.stock_current_price,  # TODO 更新当前价
+                        stock_current_price=stock.stock_current_price,
                         stock_buy_price=stock.stock_buy_price,
                         stock_sell_price=stock.stock_sell_price,
                         stock_buy_date=stock.stock_buy_date)
+                    current_price = get_current_price(stock.stock_code, date)
+                    if current_price:
+                        new_stock.stock_current_price = current_price
+                    total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
                     await new_stock.save()
+                account_record.total_stock_value = total_stock_value
+                account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
+                account_record.total_profit = account_record.total_assets - account_record.principle
+                account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+                account_record.float_profit_lost = account_record.float_profit_lost   # TODO 根据股票当前价更新
         except Error as e:
             raise APIPermissionError()
     else:
