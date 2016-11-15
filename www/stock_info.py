@@ -63,6 +63,13 @@ def get_stock(code):
 def get_current_price(stock_code, date):
     return False
 
+# TODO 取得开盘价
+def get_open_price(stock_code, date):
+    return False
+
+def get_sell_price(stock_code, date):
+    return round(get_open_price(stock_code, date)*1.04, 2)
+
 # 印花税计算
 def compute_stock_tax(buy, stock_price, stock_amount):
     if buy:

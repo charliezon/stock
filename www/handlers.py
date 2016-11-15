@@ -13,7 +13,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 
 from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today
 from config import configs
-from stock_info import get_current_price, compute_fee
+from stock_info import get_current_price, compute_fee, get_sell_price
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -401,15 +401,8 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
 
     account_record = await find_account_record(account_id, date.strip())
 
-    yinhuashui = 0
-    guohufei = 0
-    if not (stock_code[:1] == '0' or stock_code[:1] == '3'):
-        guohufei = stock_amount * configs.stock.guohu_rate;
-    yongjin = stock_amount * stock_price * accounts[0].commission_rate
-    if yongjin < 5:
-        yongjin = 5
-
-    money = stock_amount * stock_price + yongjin + guohufei
+    fee = compute_fee(True, accounts[0].commission_rate, stock_code, stock_price, stock_amount)
+    money = stock_amount * stock_price + fee
     if money > account_record.security_funding:
         raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
 
@@ -422,12 +415,27 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     else:
         account_record.stock_position = 0
     account_record.total_profit = account_record.total_assets - account_record.principle
-    # TODO 根据各只股票的当前价计算
-    account_record.float_profit_lost = 0
+
+    sell_price = get_sell_price(stock_code.strip(), date.strip())
+    new_stock = StockHoldRecord(
+        account_record_id=account_record.id,
+        stock_code=stock_code.strip(),
+        stock_name=stock_name,
+        stock_amount=stock_amount,
+        stock_current_price=current_price,
+        stock_buy_price=stock_price,
+        stock_sell_price=sell_price,
+        stock_buy_date=date.strip())
+    await new_stock.save()
+
+    float_profit_lost = 0
+    stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+    for stock in stocks:
+        float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+    
+    account_record.float_profit_lost = float_profit_lost
 
     await account_record.update()
-
-    # stock hold record增加一条记录
     
     return accounts[0]
 
