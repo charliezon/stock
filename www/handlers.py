@@ -297,6 +297,8 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
         commission_rate = float(commission_rate)
     except ValueError as e:
         raise APIValueError('commission_rate', '手续费率填写不正确')
+    if commission_rate < 0:
+        raise APIValueError('commission_rate', '手续费率不能小于0')
     try:
         initial_funding = float(initial_funding)
     except ValueError as e:
@@ -330,6 +332,8 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
         commission_rate = float(commission_rate)
     except ValueError as e:
         raise APIValueError('commission_rate', '手续费率填写不正确')
+    if commission_rate < 0:
+        raise APIValueError('commission_rate', '手续费率不能小于0')
     try:
         initial_funding = float(initial_funding)
     except ValueError as e:
