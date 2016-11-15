@@ -118,6 +118,15 @@ def create_account(request):
         'action': '/api/accounts'
     }
 
+@get('/account/advanced/create')
+def advanced_create_account(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    return {
+        '__template__': 'advanced_create_account.html',
+        'action': '/api/advanced/accounts'
+    }
+
 _RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
 
@@ -296,6 +305,51 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
     await account.save()
     try:
         account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+        await account_record.save()
+    except Error as e:
+        account.remove()
+        raise APIValueError('name', '创建账户失败')
+    return account
+
+@asyncio.coroutine
+@post('/api/advanced/accounts')
+async def api_advanced_create_account(request, *, name, commission_rate, initial_funding, initial_bank_funding, initial_security_funding, date):
+    must_log_in(request)
+    if not name or not name.strip():
+        raise APIValueError('name', '账户名称不能为空')
+    accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
+    if len(accounts) > 0:
+        raise APIValueError('name', '账户名称已被用')
+    try:
+        commission_rate = float(commission_rate)
+    except ValueError as e:
+        raise APIValueError('commission_rate', '手续费率填写不正确')
+    try:
+        initial_funding = float(initial_funding)
+    except ValueError as e:
+        raise APIValueError('initial_funding', '初始本金填写不正确')
+    try:
+        initial_bank_funding = float(initial_bank_funding)
+    except ValueError as e:
+        raise APIValueError('initial_bank_funding', '初始银行资金填写不正确')
+    if initial_bank_funding<0:
+        raise APIValueError('initial_bank_funding', '初始银行资金必须大于0')
+    try:
+        initial_security_funding = float(initial_security_funding)
+    except ValueError as e:
+        raise APIValueError('initial_security_funding', '初始银证资金填写不正确')
+    if initial_security_funding<0:
+        raise APIValueError('initial_security_funding', '初始银证资金必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+    account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+    await account.save()
+    try:
+        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=initial_security_funding, bank_funding=initial_bank_funding, total_stock_value=0, total_assets=initial_security_funding+initial_bank_funding, float_profit_lost=0, total_profit=initial_security_funding+initial_bank_funding-initial_funding, principle=initial_funding)
         await account_record.save()
     except Error as e:
         account.remove()
