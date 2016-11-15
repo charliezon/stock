@@ -350,8 +350,7 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
 
     account_record.security_funding = account_record.security_funding - money
-    # TODO 获取这天这股的收盘价 current_price
-    current_price = 0
+    current_price = get_current_price(stock_code.strip(), date.strip())
     account_record.total_stock_value = account_record.total_stock_value + stock_amount*current_price
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:

@@ -54,8 +54,10 @@ def get_stock(code):
     else:
         return get_stock_via_name(code)
 
-# TODO 获取代码为stock_code的股票在date日期的收盘价
+# TODO 如果date早于今天，则获取代码为stock_code的股票在date日期的收盘价，否则获取当前价格
+# TODO 如果date早于今天，从cache中获取
 # TODO 改成每天定时更新当天所有accout_records的stock_hold_records的current price
+# TODO 如果时间晚于 15点，且股价不再变化，存入cache
 def get_current_price(stock_code, date):
     return False
 
