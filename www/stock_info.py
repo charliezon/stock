@@ -7,6 +7,7 @@ __author__ = 'Chaoliang Zhong'
 
 from urllib import request
 from urllib.parse import quote
+from config import configs
 
 # http://suggest3.sinajs.cn/suggest/type=11,12,13,14,15&key=ptp
 # http://suggest3.sinajs.cn/suggest/type=11,12,13,14,15&key=浦发银行
@@ -28,6 +29,7 @@ def get_stock_via_name(name):
 # http://qt.gtimg.cn/q=sz300001  创业板
 # http://qt.gtimg.cn/q=sh600919 沪指
 # http://qt.gtimg.cn/q=sz000858 深指
+# TODO 删除name中的空白字符 
 def get_stock_via_code(code):
     if code[:1] == '0' or code[:1] == '3':
         new_code = 'sz' + code;
@@ -60,6 +62,31 @@ def get_stock(code):
 # TODO 如果时间晚于 15点，且股价不再变化，存入cache
 def get_current_price(stock_code, date):
     return False
+
+# 印花税计算
+def compute_stock_tax(buy, stock_price, stock_amount):
+    if buy:
+        return 0
+    else:
+        return stock_price*stock_amount*configs.tax_rate
+
+# 过户费计算
+def compute_exchange_fee(stock_code, stock_amount):
+    if not (stock_code[:1] == '0' or stock_code[:1] == '3'):
+        return stock_amount * configs.stock.exchange_fee_rate;
+    else:
+        return 0
+
+# 佣金计算
+def compute_security_fee(stock_price, stock_amount, commission_rate):
+    security_fee = stock_amount * stock_price * commission_rate
+    if security_fee < 5:
+        security_fee = 5
+    return security_fee
+
+
+def compute_fee(buy, commission_rate, stock_code, stock_price, stock_amount):
+    return compute_stock_tax(buy, stock_price, stock_amount) + compute_exchange_fee(stock_code, stock_amount) + compute_security_fee(stock_price, stock_amount, commission_rate)
 
 
 print(get_stock('300001'))

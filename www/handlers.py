@@ -13,7 +13,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 
 from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today
 from config import configs
-from stock_info import get_current_price
+from stock_info import get_current_price, compute_fee
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -172,6 +172,9 @@ def must_log_in(request):
 
 @asyncio.coroutine
 async def find_account_record(account_id, date):
+    account = await Account.find(account_id)
+    if not account:
+        raise APIPermissionError()
     all_account_records = await AccountRecord.findAll('account_id=? and date=?', [account_id, date])
     if len(all_account_records) <=0:
         pre_account_records = await AccountRecord.findAll('account_id=? and date<?', [account_id, date], orderBy='date desc', limit=1)
@@ -194,6 +197,7 @@ async def find_account_record(account_id, date):
             stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
             if len(stocks) > 0:
                 total_stock_value = 0
+                float_profit_lost = 0
                 for stock in stocks:
                     new_stock = StockHoldRecord(
                         account_record_id=account_record.id,
@@ -208,12 +212,14 @@ async def find_account_record(account_id, date):
                     if current_price:
                         new_stock.stock_current_price = current_price
                     total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
+                    float_profit_lost = float_profit_lost + (new_stock.stock_current_price-new_stock.stock_buy_price)*new_stock.stock_amount - compute_fee(True, account.commission_rate, new_stock.stock_code, new_stock.stock_buy_price, new_stock.stock_amount)
                     await new_stock.save()
                 account_record.total_stock_value = total_stock_value
                 account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
                 account_record.total_profit = account_record.total_assets - account_record.principle
                 account_record.stock_position = account_record.total_stock_value / account_record.total_assets
-                account_record.float_profit_lost = account_record.float_profit_lost   # TODO 根据股票当前价更新
+                account_record.float_profit_lost = float_profit_lost
+                await account_record.update()
         except Error as e:
             raise APIPermissionError()
     else:
