@@ -11,8 +11,9 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, next_id
+from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today
 from config import configs
+from stock_info import get_current_price
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -117,6 +118,15 @@ def create_account(request):
         'action': '/api/accounts'
     }
 
+@get('/account/advanced/create')
+def advanced_create_account(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    return {
+        '__template__': 'advanced_create_account.html',
+        'action': '/api/advanced/accounts'
+    }
+
 _RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
 
@@ -161,6 +171,56 @@ def must_log_in(request):
         pass
 
 @asyncio.coroutine
+async def find_account_record(account_id, date):
+    all_account_records = await AccountRecord.findAll('account_id=? and date=?', [account_id, date])
+    if len(all_account_records) <=0:
+        pre_account_records = await AccountRecord.findAll('account_id=? and date<?', [account_id, date], orderBy='date desc', limit=1)
+        if len(pre_account_records) <=0:
+            raise APIPermissionError()
+        try:
+            account_record = AccountRecord(
+                date=date, 
+                account_id=account_id, 
+                stock_position=pre_account_records[0].stock_position,
+                security_funding=pre_account_records[0].security_funding, 
+                bank_funding=pre_account_records[0].bank_funding, 
+                total_stock_value=pre_account_records[0].total_stock_value,
+                total_assets=pre_account_records[0].total_assets,
+                float_profit_lost=pre_account_records[0].float_profit_lost,
+                total_profit=pre_account_records[0].total_profit,
+                principle=pre_account_records[0].principle)
+            await account_record.save()
+
+            stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
+            if len(stocks) > 0:
+                total_stock_value = 0
+                for stock in stocks:
+                    new_stock = StockHoldRecord(
+                        account_record_id=account_record.id,
+                        stock_code=stock.stock_code,
+                        stock_name=stock.stock_name,
+                        stock_amount=stock.stock_amount,
+                        stock_current_price=stock.stock_current_price,
+                        stock_buy_price=stock.stock_buy_price,
+                        stock_sell_price=stock.stock_sell_price,
+                        stock_buy_date=stock.stock_buy_date)
+                    current_price = get_current_price(stock.stock_code, date)
+                    if current_price:
+                        new_stock.stock_current_price = current_price
+                    total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
+                    await new_stock.save()
+                account_record.total_stock_value = total_stock_value
+                account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
+                account_record.total_profit = account_record.total_assets - account_record.principle
+                account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+                account_record.float_profit_lost = account_record.float_profit_lost   # TODO 根据股票当前价更新
+        except Error as e:
+            raise APIPermissionError()
+    else:
+        account_record = all_account_records[0]
+    return account_record
+
+@asyncio.coroutine
 @get('/account')
 async def get_default_account(request):
     if not has_logged_in(request):
@@ -202,7 +262,13 @@ async def get_account(request, *, id):
         'account': account,
         'accounts': all_accounts,
         'most_recent_account_record': all_account_records[0],
-        'all_account_records': all_account_records
+        'all_account_records': all_account_records,
+        'buy_action': '/api/buy',
+        'sell_action': '/api/sell',
+        'add_bank_funding_action' : '/api/add_bank_funding',
+        'minus_bank_funding_action' : '/api/minus_bank_funding',
+        'add_security_funding_action' : '/api/add_security_funding',
+        'minus_security_funding_action' : '/api/minus_security_funding'
     }
 
 @asyncio.coroutine
@@ -214,7 +280,7 @@ async def api_get_account(request, *, id):
 
 @asyncio.coroutine
 @post('/api/accounts')
-async def api_create_account(request, *, name, commission_rate, initial_funding):
+async def api_create_account(request, *, name, commission_rate, initial_funding, date):
     must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
@@ -229,12 +295,320 @@ async def api_create_account(request, *, name, commission_rate, initial_funding)
         initial_funding = float(initial_funding)
     except ValueError as e:
         raise APIValueError('initial_funding', '初始资金填写不正确')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
     try:
-        account_record = AccountRecord(account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
         await account_record.save()
     except Error as e:
         account.remove()
         raise APIValueError('name', '创建账户失败')
     return account
+
+@asyncio.coroutine
+@post('/api/advanced/accounts')
+async def api_advanced_create_account(request, *, name, commission_rate, initial_funding, initial_bank_funding, initial_security_funding, date):
+    must_log_in(request)
+    if not name or not name.strip():
+        raise APIValueError('name', '账户名称不能为空')
+    accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
+    if len(accounts) > 0:
+        raise APIValueError('name', '账户名称已被用')
+    try:
+        commission_rate = float(commission_rate)
+    except ValueError as e:
+        raise APIValueError('commission_rate', '手续费率填写不正确')
+    try:
+        initial_funding = float(initial_funding)
+    except ValueError as e:
+        raise APIValueError('initial_funding', '初始本金填写不正确')
+    try:
+        initial_bank_funding = float(initial_bank_funding)
+    except ValueError as e:
+        raise APIValueError('initial_bank_funding', '初始银行资金填写不正确')
+    if initial_bank_funding<0:
+        raise APIValueError('initial_bank_funding', '初始银行资金必须大于0')
+    try:
+        initial_security_funding = float(initial_security_funding)
+    except ValueError as e:
+        raise APIValueError('initial_security_funding', '初始银证资金填写不正确')
+    if initial_security_funding<0:
+        raise APIValueError('initial_security_funding', '初始银证资金必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+    account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+    await account.save()
+    try:
+        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=initial_security_funding, bank_funding=initial_bank_funding, total_stock_value=0, total_assets=initial_security_funding+initial_bank_funding, float_profit_lost=0, total_profit=initial_security_funding+initial_bank_funding-initial_funding, principle=initial_funding)
+        await account_record.save()
+    except Error as e:
+        account.remove()
+        raise APIValueError('name', '创建账户失败')
+    return account
+
+@asyncio.coroutine
+@post('/api/buy')
+async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount, date, account_id):
+    must_log_in(request)
+    if not stock_name or not stock_name.strip():
+        raise APIValueError('stock_name', '股票名称不能为空')
+    if not stock_code or not stock_code.strip():
+        raise APIValueError('stock_code', '股票代码不能为空')
+    try:
+        stock_price = float(stock_price)
+    except ValueError as e:
+        raise APIValueError('stock_price', '股票价格填写不正确')
+    if stock_price<=0:
+        raise APIValueError('stock_price', '股票价格必须大于0')
+    try:
+        stock_amount = int(stock_amount)
+    except ValueError as e:
+        raise APIValueError('stock_amount', '股票数量填写不正确')
+    if stock_amount <=  0:
+        raise APIValueError('stock_amount', '股票数量必须大于0')
+    if stock_amount % 100 != 0:
+        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    yinhuashui = 0
+    guohufei = 0
+    if not (stock_code[:1] == '0' or stock_code[:1] == '3'):
+        guohufei = stock_amount * configs.stock.guohu_rate;
+    yongjin = stock_amount * stock_price * accounts[0].commission_rate
+    if yongjin < 5:
+        yongjin = 5
+
+    money = stock_amount * stock_price + yongjin + guohufei
+    if money > account_record.security_funding:
+        raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
+
+    account_record.security_funding = account_record.security_funding - money
+    current_price = get_current_price(stock_code.strip(), date.strip())
+    account_record.total_stock_value = account_record.total_stock_value + stock_amount*current_price
+    account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
+    if account_record.total_assets >0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    account_record.total_profit = account_record.total_assets - account_record.principle
+    # TODO 根据各只股票的当前价计算
+    account_record.float_profit_lost = 0
+
+    await account_record.update()
+
+    # stock hold record增加一条记录
+    
+    return accounts[0]
+
+
+
+@asyncio.coroutine
+@post('/api/add_security_funding')
+async def api_add_security_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount <=  0:
+        raise APIValueError('funding_amount', '金额必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    if account_record.bank_funding < funding_amount:
+        raise APIValueError('funding_amount', '转账金额不足')
+
+    account_record.bank_funding = account_record.bank_funding - funding_amount
+    account_record.security_funding = account_record.security_funding + funding_amount
+    await account_record.update()
+
+    security_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=True,
+        security_or_bank=True,
+        date=date)
+
+    await security_funding_change.save()
+
+    bank_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=False,
+        security_or_bank=False,
+        date=date)
+
+    await bank_funding_change.save()
+
+    return accounts[0]
+
+
+@asyncio.coroutine
+@post('/api/minus_security_funding')
+async def api_minus_security_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount <=  0:
+        raise APIValueError('funding_amount', '金额必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    if account_record.security_funding < funding_amount:
+        raise APIValueError('funding_amount', '转账金额不足')
+
+    account_record.bank_funding = account_record.bank_funding + funding_amount
+    account_record.security_funding = account_record.security_funding - funding_amount
+    await account_record.update()
+
+    security_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=False,
+        security_or_bank=True,
+        date=date)
+
+    await security_funding_change.save()
+
+    bank_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=True,
+        security_or_bank=False,
+        date=date)
+
+    await bank_funding_change.save()
+
+    return accounts[0]
+
+@asyncio.coroutine
+@post('/api/add_bank_funding')
+async def api_add_bank_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount <=  0:
+        raise APIValueError('funding_amount', '金额必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    account_record.bank_funding = account_record.bank_funding + funding_amount
+    account_record.principle = account_record.principle + funding_amount
+    account_record.total_assets = account_record.total_assets + funding_amount
+    if account_record.total_assets > 0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    await account_record.update()
+
+    bank_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=True,
+        security_or_bank=False,
+        date=date)
+
+    await bank_funding_change.save()
+
+    return accounts[0]
+
+@asyncio.coroutine
+@post('/api/minus_bank_funding')
+async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount <=  0:
+        raise APIValueError('funding_amount', '金额必须大于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+
+    if (account_record.bank_funding < funding_amount):
+        raise APIValueError('funding_amount', '金额不足')
+
+    account_record.bank_funding = account_record.bank_funding - funding_amount
+    account_record.principle = account_record.principle - funding_amount
+    account_record.total_assets = account_record.total_assets - funding_amount
+    if account_record.total_assets > 0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    await account_record.update()
+
+    bank_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        add_or_minus=False,
+        security_or_bank=False,
+        date=date)
+
+    await bank_funding_change.save()
+
+    return accounts[0]

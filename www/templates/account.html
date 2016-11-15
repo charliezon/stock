@@ -5,6 +5,160 @@
 {% block beforehead %}
 
 <script>
+
+var
+    buy_action = '{{ buy_action }}',
+    buy_vm,
+    sell_action = '{{ sell_action }}',
+    sell_vm,
+
+    add_bank_funding_action = '{{ add_bank_funding_action }}',
+    add_bank_funding_vm,
+    minus_bank_funding_action = '{{ minus_bank_funding_action }}',
+    minus_bank_funding_vm,
+
+    add_security_funding_action = '{{ add_security_funding_action }}',
+    add_security_funding_vm,
+    minus_security_funding_action = '{{ minus_security_funding_action }}',
+    minus_security_funding_vm;
+
+
+$(document).ready(function(){
+
+    buy_vm = initVM({
+        stock_name: '',
+        stock_code: '',
+        stock_price: 0,
+        stock_amount: 0,
+        date: getTodayString()
+    },
+    buy_action,
+    '#vm_buy',
+    '#buy_date');
+
+    $("#buy_button").click(
+        function() {
+            buy_vm.stock_name='';
+            buy_vm.stock_code='';
+            buy_vm.stock_price=0;
+            buy_vm.stock_amount=0;
+            buy_vm.date=getTodayString();
+            $("#buy_date").val(getTodayString());
+        });
+
+    sell_vm = initVM({
+        stock_name: '',
+        stock_code: '',
+        stock_price: 0,
+        stock_amount: 0,
+        date: getTodayString()
+    },
+    sell_action,
+
+    '#vm_sell',
+    '#sell_date');
+
+    $("#sell_button").click(
+        function() {
+            sell_vm.stock_name='';
+            sell_vm.stock_code='';
+            sell_vm.stock_price=0;
+            sell_vm.stock_amount=0;
+            sell_vm.date=getTodayString();
+            $("#sell_date").val(getTodayString());
+        });
+
+    add_bank_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    add_bank_funding_action,
+    '#vm_add_bank_funding',
+    '#add_bank_funding_date');
+
+    $("#add_bank_funding_button").click(
+        function() {
+            add_bank_funding_vm.funding_amount=0;
+            add_bank_funding_vm.date=getTodayString();
+            $("#add_bank_funding_date").val(getTodayString());
+        });
+
+    minus_bank_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    minus_bank_funding_action,
+    '#vm_minus_bank_funding',
+    '#minus_bank_funding_date');
+
+    $("#minus_bank_funding_button").click(
+        function() {
+            minus_bank_funding_vm.funding_amount=0;
+            minus_bank_funding_vm.date=getTodayString();
+            $("#minus_bank_funding_date").val(getTodayString());
+        });
+
+    add_security_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    add_security_funding_action,
+    '#vm_add_security_funding',
+    '#add_security_funding_date');
+
+    $("#add_security_funding_button").click(
+        function() {
+            add_security_funding_vm.funding_amount=0;
+            add_security_funding_vm.date=getTodayString();
+            $("#add_security_funding_date").val(getTodayString());
+        });
+
+    minus_security_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    minus_security_funding_action,
+    '#vm_minus_security_funding',
+    '#minus_security_funding_date');
+
+    $("#minus_security_funding_button").click(
+        function() {
+            minus_security_funding_vm.funding_amount=0;
+            minus_security_funding_vm.date=getTodayString();
+            $("#minus_security_funding_date").val(getTodayString());
+        });
+
+});
+
+
+
+function initVM(data, action, vm_element, date_element) {
+    return new Vue({
+        el: vm_element,
+        data: data,
+        methods: {
+            submit: function (event) {
+                this.$data.date = $(date_element).val();
+                this.$data.account_id = "{{ account.id }}";
+                event.preventDefault();
+                var $form = $(vm_element);
+                $form.postJSON(action, this.$data, function (err, r) {
+                    if (err) {
+                        $form.showFormError(err);
+                    }
+                    else {
+                        return location.assign('/account/' + r.id);
+                    }
+                });
+            }
+        }
+    });
+}
+
+
+
+
+
 </script>
 
 {% endblock %}
@@ -26,7 +180,7 @@
                     <li>利润：{{most_recent_account_record.total_profit}}</li>
                     <li>本金：{{most_recent_account_record.principle}}</li>
                     {% endif %}
-                <ul>
+                </ul>
             </div>
         </div>
 
@@ -37,14 +191,14 @@
                     <li>卖出万科100000股</li>
                     <li>卖出百度100000股</li>
                     <li>买入阿里巴巴1000000股</li>
-                <ul>
+                </ul>
             </div>
         </div>
     </div>
 
     <div class="uk-grid">
         <div class="uk-width-1-1">
-            <button class="uk-button" data-uk-modal="{target:'#buy_modal'}">买入</button>
+            <button id="buy_button" class="uk-button" data-uk-modal="{target:'#buy_modal'}">买入</button>
             <div id="buy_modal" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -54,31 +208,31 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">名称:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_name" name="stock_name" type="text" placeholder="名称" class="uk-width-1-1">
+                                <input id="buy_stock_name" v-model="stock_name" name="stock_name" type="text" placeholder="名称" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">代码:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_code" name="stock_code" type="text" placeholder="代码" class="uk-width-1-1">
+                                <input id="buy_stock_code" v-model="stock_code" name="stock_code" type="text" placeholder="代码" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">价格:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_price" name="stock_price" type="text" placeholder="价格" class="uk-width-1-1">
+                                <input id="buy_stock_price" v-model="stock_price" name="stock_price" type="text" placeholder="价格" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">数量:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_amount" name="stock_amount" type="text" placeholder="数量" class="uk-width-1-1">
+                                <input id="buy_stock_amount" v-model="stock_amount" name="stock_amount" type="text" placeholder="数量" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_date" name="stock_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="buy_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -89,7 +243,7 @@
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#sell_modal'}">卖出</button>
+            <button id="sell_button" class="uk-button" data-uk-modal="{target:'#sell_modal'}">卖出</button>
             <div id="sell_modal" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -123,7 +277,7 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="stock_date" name="stock_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="sell_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -134,7 +288,7 @@
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#add_bank_funding'}">增加银行资金</button>
+            <button id="add_bank_funding_button" class="uk-button" data-uk-modal="{target:'#add_bank_funding'}">增加银行资金</button>
             <div id="add_bank_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -150,7 +304,7 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_date" name="funding_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="add_bank_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -161,7 +315,7 @@
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#minus_bank_funding'}">减少银行资金</button>
+            <button id="minus_bank_funding_button" class="uk-button" data-uk-modal="{target:'#minus_bank_funding'}">减少银行资金</button>
             <div id="minus_bank_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -177,7 +331,7 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_date" name="funding_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="minus_bank_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -188,7 +342,7 @@
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#add_security_funding'}">转入银证资金</button>
+            <button id="add_security_funding_button" class="uk-button" data-uk-modal="{target:'#add_security_funding'}">转入银证资金</button>
             <div id="add_security_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -204,7 +358,7 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_date" name="funding_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="add_security_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -215,7 +369,7 @@
                 </div>
             </div>
 
-            <button class="uk-button" data-uk-modal="{target:'#minus_security_funding'}">转出银证资金</button>
+            <button id="minus_security_funding_button" class="uk-button" data-uk-modal="{target:'#minus_security_funding'}">转出银证资金</button>
             <div id="minus_security_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
@@ -231,7 +385,7 @@
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_date" name="funding_date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                                <input id="minus_security_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">

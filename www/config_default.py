@@ -38,6 +38,10 @@ configs = {
 
         'secret': 'stock'
 
-    }
+    },
+
+    'stock': {
+        'guohu_rate': 0.0006
+    },
 
 }
