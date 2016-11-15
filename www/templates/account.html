@@ -171,6 +171,7 @@ function initVM(data, action, vm_element, date_element) {
                 <ul>
                     {% if most_recent_account_record and account %}
                     <li>名称：{{account.name}}</li>
+                    <li>佣金率：{{account.commission_rate}}</li>
                     <li>仓位：{{most_recent_account_record.stock_position*100}}%</li>
                     <li>银证资金：{{most_recent_account_record.security_funding}}</li>
                     <li>银行资金：{{most_recent_account_record.bank_funding}}</li>
