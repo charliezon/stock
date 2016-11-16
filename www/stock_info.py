@@ -4,22 +4,20 @@
 
 __author__ = 'Chaoliang Zhong'
 
-
-from urllib import request
+import re, logging
+from urllib import request, error
 from urllib.parse import quote
-from urllib import error
 from config import configs
-import re
 from models import today
 
 def get_new_code(code):
     if code[:1] == '0' or code[:1] == '3':
-        new_code = 'sz' + code;
+        return 'sz' + code;
     else:
-        new_code = 'sh' + code;
-    return new_code
+        return 'sh' + code;
 
 def find_open_price(stock_code, year, month, day):
+    result = False
     if (year >= 2000):
         new_year = year - 2000
     else:
@@ -34,24 +32,38 @@ def find_open_price(stock_code, year, month, day):
     else:
         new_day = day
     date = str(new_year)+str(new_month)+str(new_day)
-    with request.urlopen('http://data.gtimg.cn/flashdata/hushen/daily/'+str(new_year)+'/'+new_code+'.js') as f:
-        if f.status == 200:
-            data = f.read().decode('utf-8')
-            lines = data.split('\\n\\')
-            pre_number = False
-            for line in lines:
-                numbers = line.split(' ')
-                if (len(numbers) == 6):
-                    if numbers[0].strip() == date:
-                        return numbers[1]
-                    elif numbers[0].strip() > date and pre_number:
-                        return pre_number
-                    elif numbers[0].strip() > date and not pre_number:
-                        return find_open_price(stock_code, year-1, 12, 31)
-                    if len(numbers) >= 2:
-                        pre_number = numbers[1]
+    try:
+        with request.urlopen('http://data.gtimg.cn/flashdata/hushen/daily/'+str(new_year)+'/'+new_code+'.js') as f:
+            if f.status == 200:
+                data = f.read().decode('utf-8')
+                lines = data.split('\\n\\')
+                pre_number = False
+                for line in lines:
+                    numbers = line.split(' ')
+                    if (len(numbers) == 6):
+                        if numbers[0].strip() == date:
+                            try:
+                                result = float(numbers[1].strip())
+                            except ValueError as e:
+                                logging.error(e)
+                        elif numbers[0].strip() > date and pre_number:
+                            try:
+                                result = float(pre_number.strip())
+                            except ValueError as e:
+                                logging.error(e)
+                        elif numbers[0].strip() > date and not pre_number:
+                            result = find_open_price(stock_code, year-1, 12, 31)
+                        if len(numbers) >= 2:
+                            pre_number = numbers[1]
+    except error.HTTPError as e:
+        logging.error(e)
+    except error.URLError as e:
+        logging.error(e)
+    finally:
+        return result
 
 def find_close_price(stock_code, year, month, day):
+    result = False
     if (year >= 2000):
         new_year = year - 2000
     else:
@@ -66,22 +78,35 @@ def find_close_price(stock_code, year, month, day):
     else:
         new_day = day
     date = str(new_year)+str(new_month)+str(new_day)
-    with request.urlopen('http://data.gtimg.cn/flashdata/hushen/daily/'+str(new_year)+'/'+new_code+'.js') as f:
-        if f.status == 200:
-            data = f.read().decode('utf-8')
-            lines = data.split('\\n\\')
-            pre_number = False
-            for line in lines:
-                numbers = line.split(' ')
-                if (len(numbers) == 6):
-                    if numbers[0].strip() == date:
-                        return numbers[2]
-                    elif numbers[0].strip() > date and pre_number:
-                        return pre_number
-                    elif numbers[0].strip() > date and not pre_number:
-                        return find_close_price(stock_code, year-1, 12, 31)
-                    if len(numbers) >= 2:
-                        pre_number = numbers[2]           
+    try:
+        with request.urlopen('http://data.gtimg.cn/flashdata/hushen/daily/'+str(new_year)+'/'+new_code+'.js') as f:
+            if f.status == 200:
+                data = f.read().decode('utf-8')
+                lines = data.split('\\n\\')
+                pre_number = False
+                for line in lines:
+                    numbers = line.split(' ')
+                    if (len(numbers) == 6):
+                        if numbers[0].strip() == date:
+                            try:
+                                result = float(numbers[2].strip())
+                            except ValueError as e:
+                                logging.error(e)
+                        elif numbers[0].strip() > date and pre_number:
+                            try:
+                                result = float(pre_number.strip())
+                            except ValueError as e:
+                                logging.error(e)
+                        elif numbers[0].strip() > date and not pre_number:
+                            result = find_close_price(stock_code, year-1, 12, 31)
+                        if len(numbers) >= 2:
+                            pre_number = numbers[2]
+    except error.HTTPError as e:
+        logging.error(e)
+    except error.URLError as e:
+        logging.error(e)
+    finally:
+        return result
 
 # http://suggest3.sinajs.cn/suggest/type=11,12,13,14,15&key=ptp
 # http://suggest3.sinajs.cn/suggest/type=11,12,13,14,15&key=浦发银行
@@ -126,20 +151,24 @@ def get_stock(code):
     else:
         return get_stock_via_name(code)
 
-# TODO 如果date早于今天，则获取代码为stock_code的股票在date日期的收盘价，否则获取当前价格
-# TODO 如果date早于今天，从cache中获取
-# TODO 改成每天定时更新当天所有accout_records的stock_hold_records的current price
-# TODO 如果时间晚于 15点，且股价不再变化，存入cache
 def get_current_price(stock_code, date):
     numbers = date.split('-')
-    return find_close_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+    current_price = find_close_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+    if current_price:
+        return current_price
+    else:
+        return 0
 
 def get_open_price(stock_code, date):
     numbers = date.split('-')
     return find_open_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
 
 def get_sell_price(stock_code, date):
-    return round(get_open_price(stock_code, date)*1.04, 2)
+    open_price = get_open_price(stock_code, date)
+    if open_price:
+        return round(open_price*1.04, 2)
+    else
+        return 0
 
 # 印花税计算
 def compute_stock_tax(buy, stock_price, stock_amount):
