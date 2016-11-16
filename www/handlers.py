@@ -416,19 +416,27 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         account_record.stock_position = 0
     account_record.total_profit = account_record.total_assets - account_record.principle
 
-    # TODO 检查是否持有该股票，若是，直接增加股数即可
-
     sell_price = get_sell_price(stock_code.strip(), date.strip())
-    new_stock = StockHoldRecord(
-        account_record_id=account_record.id,
-        stock_code=stock_code.strip(),
-        stock_name=stock_name,
-        stock_amount=stock_amount,
-        stock_current_price=current_price,
-        stock_buy_price=stock_price,
-        stock_sell_price=sell_price,
-        stock_buy_date=date.strip())
-    await new_stock.save()
+
+    exist_stocks = StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
+    if len(exist_stocks) > 0:
+        exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
+        exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
+        exist_stocks[0].stock_sell_price = sell_price
+        exist_stocks[0].stock_buy_date = date.strip()
+        exist_stocks[0].stock_current_price=current_price
+        await exist_stocks[0].update()
+    else:
+        new_stock = StockHoldRecord(
+            account_record_id=account_record.id,
+            stock_code=stock_code.strip(),
+            stock_name=stock_name,
+            stock_amount=stock_amount,
+            stock_current_price=current_price,
+            stock_buy_price=stock_price,
+            stock_sell_price=sell_price,
+            stock_buy_date=date.strip())
+        await new_stock.save()
 
     float_profit_lost = 0
     stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
