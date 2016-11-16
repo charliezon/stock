@@ -44,15 +44,18 @@ def find_open_price(stock_code, year, month, day):
                         if numbers[0].strip() == date:
                             try:
                                 result = float(numbers[1].strip())
+                                break
                             except ValueError as e:
                                 logging.error(e)
                         elif numbers[0].strip() > date and pre_number:
                             try:
                                 result = float(pre_number.strip())
+                                break
                             except ValueError as e:
                                 logging.error(e)
                         elif numbers[0].strip() > date and not pre_number:
                             result = find_open_price(stock_code, year-1, 12, 31)
+                            break
                         if len(numbers) >= 2:
                             pre_number = numbers[1]
     except error.HTTPError as e:
@@ -90,15 +93,18 @@ def find_close_price(stock_code, year, month, day):
                         if numbers[0].strip() == date:
                             try:
                                 result = float(numbers[2].strip())
+                                break
                             except ValueError as e:
                                 logging.error(e)
                         elif numbers[0].strip() > date and pre_number:
                             try:
                                 result = float(pre_number.strip())
+                                break
                             except ValueError as e:
                                 logging.error(e)
                         elif numbers[0].strip() > date and not pre_number:
                             result = find_close_price(stock_code, year-1, 12, 31)
+                            break
                         if len(numbers) >= 2:
                             pre_number = numbers[2]
     except error.HTTPError as e:
@@ -214,10 +220,10 @@ print(find_open_price('600000', 2011, 1, 14))
 print(find_open_price('600000', 2011, 2, 15))
 print(find_open_price('600000', 2011, 3, 20))
 print(find_open_price('600000', 2011, 3, 19))
-print(get_open_price('600000', '2011-01-03'))
-print(get_open_price('600000', '2011-01-14'))
-print(get_open_price('600000', '2011-02-15'))
-print(get_open_price('600000', '2011-03-20'))
-print(get_open_price('600000', '2011-03-19'))
+print(get_current_price('600000', '2011-01-03'))
+print(get_current_price('600000', '2011-01-14'))
+print(get_current_price('600000', '2011-02-15'))
+print(get_current_price('600000', '2011-03-20'))
+print(get_current_price('600000', '2011-03-19'))
 
 
