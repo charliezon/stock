@@ -416,6 +416,8 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         account_record.stock_position = 0
     account_record.total_profit = account_record.total_assets - account_record.principle
 
+    # TODO 检查是否持有该股票，若是，直接增加股数即可
+
     sell_price = get_sell_price(stock_code.strip(), date.strip())
     new_stock = StockHoldRecord(
         account_record_id=account_record.id,
@@ -439,7 +441,11 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     
     return accounts[0]
 
-
+# TODO
+@asyncio.coroutine
+@post('/api/sell')
+async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount, date, account_id):
+    pass
 
 @asyncio.coroutine
 @post('/api/add_security_funding')
