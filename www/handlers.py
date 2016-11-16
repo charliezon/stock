@@ -483,7 +483,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
         raise APIPermissionError()
     account_record = await find_account_record(account_id, date.strip())
     exist_stocks = StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
-    if len(exist_stocks) <= 0 || exist_stocks[0].stock_amount < stock_amount:
+    if len(exist_stocks) <= 0 or exist_stocks[0].stock_amount < stock_amount:
         raise APIValueError('stock_amount', '股票数量不足')
 
     fee = compute_fee(False, accounts[0].commission_rate, stock_code, stock_price, stock_amount)
