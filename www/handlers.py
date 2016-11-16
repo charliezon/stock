@@ -217,7 +217,7 @@ async def find_account_record(account_id, date):
                 account_record.total_stock_value = total_stock_value
                 account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
                 account_record.total_profit = account_record.total_assets - account_record.principle
-                account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+                account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
                 account_record.float_profit_lost = float_profit_lost
                 await account_record.update()
         except Error as e:
@@ -411,14 +411,14 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     account_record.total_stock_value = account_record.total_stock_value + stock_amount*current_price
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:
-        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+        account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
     else:
         account_record.stock_position = 0
     account_record.total_profit = account_record.total_assets - account_record.principle
 
     sell_price = get_sell_price(stock_code.strip(), date.strip())
 
-    exist_stocks = StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
+    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
     if len(exist_stocks) > 0:
         exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
         exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
@@ -482,7 +482,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     if len(accounts) <=0:
         raise APIPermissionError()
     account_record = await find_account_record(account_id, date.strip())
-    exist_stocks = StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
+    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
     if len(exist_stocks) <= 0 or exist_stocks[0].stock_amount < stock_amount:
         raise APIValueError('stock_amount', '股票数量不足')
 
@@ -492,7 +492,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     account_record.total_stock_value = account_record.total_stock_value - stock_amount*exist_stocks[0].stock_current_price
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:
-        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+        account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
     else:
         account_record.stock_position = 0
     account_record.total_profit = account_record.total_assets - account_record.principle
@@ -645,7 +645,7 @@ async def api_add_bank_funding(request, *, funding_amount, date, account_id):
     account_record.principle = account_record.principle + funding_amount
     account_record.total_assets = account_record.total_assets + funding_amount
     if account_record.total_assets > 0:
-        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+        account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
     else:
         account_record.stock_position = 0
     await account_record.update()
@@ -691,7 +691,7 @@ async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
     account_record.principle = account_record.principle - funding_amount
     account_record.total_assets = account_record.total_assets - funding_amount
     if account_record.total_assets > 0:
-        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+        account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
     else:
         account_record.stock_position = 0
     await account_record.update()
