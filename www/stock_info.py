@@ -167,7 +167,7 @@ def get_sell_price(stock_code, date):
     open_price = get_open_price(stock_code, date)
     if open_price:
         return round(open_price*1.04, 2)
-    else
+    else:
         return 0
 
 # 印花税计算
