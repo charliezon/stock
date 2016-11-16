@@ -193,8 +193,8 @@ def compute_security_fee(stock_price, stock_amount, commission_rate):
 
 
 def compute_fee(buy, commission_rate, stock_code, stock_price, stock_amount):
-    return compute_stock_tax(buy, stock_price, stock_amount) + compute_exchange_fee(stock_code, stock_amount) + compute_security_fee(stock_price, stock_amount, commission_rate)
-
+    fee = compute_stock_tax(buy, stock_price, stock_amount) + compute_exchange_fee(stock_code, stock_amount) + compute_security_fee(stock_price, stock_amount, commission_rate)
+    return round(fee, 2)
 
 # print(get_stock('300001'))
 # print(get_stock('600919'))
