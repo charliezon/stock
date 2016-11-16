@@ -449,11 +449,73 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     
     return accounts[0]
 
-# TODO
 @asyncio.coroutine
 @post('/api/sell')
 async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount, date, account_id):
-    pass
+    must_log_in(request)
+    if not stock_name or not stock_name.strip():
+        raise APIValueError('stock_name', '股票名称不能为空')
+    if not stock_code or not stock_code.strip():
+        raise APIValueError('stock_code', '股票代码不能为空')
+    try:
+        stock_price = float(stock_price)
+    except ValueError as e:
+        raise APIValueError('stock_price', '股票价格填写不正确')
+    if stock_price<=0:
+        raise APIValueError('stock_price', '股票价格必须大于0')
+    try:
+        stock_amount = int(stock_amount)
+    except ValueError as e:
+        raise APIValueError('stock_amount', '股票数量填写不正确')
+    if stock_amount <=  0:
+        raise APIValueError('stock_amount', '股票数量必须大于0')
+    if stock_amount % 100 != 0:
+        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+    account_record = await find_account_record(account_id, date.strip())
+    exist_stocks = StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
+    if len(exist_stocks) <= 0 || exist_stocks[0].stock_amount < stock_amount:
+        raise APIValueError('stock_amount', '股票数量不足')
+
+    fee = compute_fee(False, accounts[0].commission_rate, stock_code, stock_price, stock_amount)
+
+    account_record.security_funding = account_record.security_funding + stock_price*stock_amount - fee
+    account_record.total_stock_value = account_record.total_stock_value - stock_amount*exist_stocks[0].stock_current_price
+    account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
+    if account_record.total_assets >0:
+        account_record.stock_position = account_record.total_stock_value / account_record.total_assets
+    else:
+        account_record.stock_position = 0
+    account_record.total_profit = account_record.total_assets - account_record.principle
+
+    if stock_amount == exist_stocks[0].stock_amount:
+        await exist_stocks[0].remove()
+    else:
+        exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
+        await exist_stocks[0].update()
+
+    float_profit_lost = 0
+    stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+    for stock in stocks:
+        float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+    
+    account_record.float_profit_lost = float_profit_lost
+
+    await account_record.update()
+    
+    return accounts[0]
+
+
+
 
 @asyncio.coroutine
 @post('/api/add_security_funding')
