@@ -261,7 +261,7 @@ async def get_account(request, *, id):
         stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
         if len(stock_hold_records)<10:
             for x in range(10-len(stock_hold_records)):
-                stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0})
+                stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
         account_record.stock_hold_records = stock_hold_records[:10]
     return {
         '__template__': 'account.html',
