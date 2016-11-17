@@ -181,7 +181,7 @@ def compute_stock_tax(buy, stock_price, stock_amount):
     if buy:
         return 0
     else:
-        return stock_price*stock_amount*configs.tax_rate
+        return stock_price*stock_amount*configs.stock.tax_rate
 
 # 过户费计算
 def compute_exchange_fee(stock_code, stock_amount):
