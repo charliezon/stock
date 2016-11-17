@@ -17,6 +17,8 @@
 
 --
 -- Table structure for table `account_asset_change`
+
+use stock;
 --
 
 DROP TABLE IF EXISTS `account_asset_change`;
