@@ -41,7 +41,8 @@ configs = {
     },
 
     'stock': {
-        'guohu_rate': 0.0006
+        'exchange_fee_rate': 0.0006,
+        'tax_rate': 0.001
     },
 
 }
