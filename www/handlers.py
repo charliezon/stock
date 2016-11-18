@@ -274,7 +274,8 @@ async def get_account(request, *, id):
         'add_bank_funding_action' : '/api/add_bank_funding',
         'minus_bank_funding_action' : '/api/minus_bank_funding',
         'add_security_funding_action' : '/api/add_security_funding',
-        'minus_security_funding_action' : '/api/minus_security_funding'
+        'minus_security_funding_action' : '/api/minus_security_funding',
+        'modify_security_funding_action' : '/api/modify_security_funding'
     }
 
 @asyncio.coroutine
@@ -550,7 +551,7 @@ async def api_add_security_funding(request, *, funding_amount, date, account_id)
     security_funding_change = AccountAssetChange(
         account_id=account_id,
         change_amount=funding_amount,
-        add_or_minus=True,
+        operation=1,
         security_or_bank=True,
         date=date)
 
@@ -559,7 +560,7 @@ async def api_add_security_funding(request, *, funding_amount, date, account_id)
     bank_funding_change = AccountAssetChange(
         account_id=account_id,
         change_amount=funding_amount,
-        add_or_minus=False,
+        operation=0,
         security_or_bank=False,
         date=date)
 
@@ -601,7 +602,7 @@ async def api_minus_security_funding(request, *, funding_amount, date, account_i
     security_funding_change = AccountAssetChange(
         account_id=account_id,
         change_amount=funding_amount,
-        add_or_minus=False,
+        operation=0,
         security_or_bank=True,
         date=date)
 
@@ -610,7 +611,7 @@ async def api_minus_security_funding(request, *, funding_amount, date, account_i
     bank_funding_change = AccountAssetChange(
         account_id=account_id,
         change_amount=funding_amount,
-        add_or_minus=True,
+        operation=1,
         security_or_bank=False,
         date=date)
 
@@ -653,7 +654,7 @@ async def api_add_bank_funding(request, *, funding_amount, date, account_id):
     bank_funding_change = AccountAssetChange(
         account_id=account_id,
         change_amount=funding_amount,
-        add_or_minus=True,
+        operation=1,
         security_or_bank=False,
         date=date)
 
@@ -699,10 +700,54 @@ async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
     bank_funding_change = AccountAssetChange(
         account_id=account_id,
         change_amount=funding_amount,
-        add_or_minus=False,
+        operation=0,
         security_or_bank=False,
         date=date)
 
     await bank_funding_change.save()
+
+    return accounts[0]
+
+@asyncio.coroutine
+@post('/api/modify_security_funding')
+async def api_modify_security_funding(request, *, funding_amount, date, account_id):
+    must_log_in(request)
+    try:
+        funding_amount = float(funding_amount)
+    except ValueError as e:
+        raise APIValueError('funding_amount', '金额填写不正确')
+    if funding_amount < 0:
+        raise APIValueError('funding_amount', '金额必须大于等于0')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
+    account_record.security_funding = funding_amount
+
+    account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
+    if account_record.total_assets >0:
+        account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
+    else:
+        account_record.stock_position = 0
+    account_record.total_profit = account_record.total_assets - account_record.principle
+
+    await account_record.update()
+
+    security_funding_change = AccountAssetChange(
+        account_id=account_id,
+        change_amount=funding_amount,
+        operation=2,
+        security_or_bank=True,
+        date=date)
+
+    await security_funding_change.save()
 
     return accounts[0]

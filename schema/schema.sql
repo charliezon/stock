@@ -75,7 +75,7 @@ create table account_asset_change (
     `id` varchar(50) not null,
     `account_id` varchar(50) not null,
     `change_amount` real not null,
-    `add_or_minus` bool null,
+    `operation` int(100) not null,
     `security_or_bank` bool null,
     `date` varchar(50) not null,
     `created_at` real not null,

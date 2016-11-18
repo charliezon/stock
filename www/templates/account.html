@@ -20,7 +20,9 @@ var
     add_security_funding_action = '{{ add_security_funding_action }}',
     add_security_funding_vm,
     minus_security_funding_action = '{{ minus_security_funding_action }}',
-    minus_security_funding_vm;
+    minus_security_funding_vm,
+    modify_security_funding_action = '{{ modify_security_funding_action }}',
+    modify_security_funding_vm;
 
 
 $(document).ready(function(){
@@ -126,6 +128,21 @@ $(document).ready(function(){
             minus_security_funding_vm.funding_amount=0;
             minus_security_funding_vm.date=getTodayString();
             $("#minus_security_funding_date").val(getTodayString());
+        });
+
+    modify_security_funding_vm = initVM({
+        funding_amount: 0,
+        date: getTodayString()
+    },
+    modify_security_funding_action,
+    '#vm_modify_security_funding',
+    '#modify_security_funding_date');
+
+    $("#modify_security_funding_button").click(
+        function() {
+            modify_security_funding_vm.funding_amount=0;
+            modify_security_funding_vm.date=getTodayString();
+            $("#modify_security_funding_date").val(getTodayString());
         });
 
 });
@@ -289,17 +306,17 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button id="add_bank_funding_button" class="uk-button" data-uk-modal="{target:'#add_bank_funding'}">增加银行资金</button>
+            <button id="add_bank_funding_button" class="uk-button" data-uk-modal="{target:'#add_bank_funding'}">增加本金</button>
             <div id="add_bank_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
-                    <h1>增加银行资金</h1>
+                    <h1>增加本金</h1>
                     <form id="vm_add_bank_funding" v-on="submit: submit" class="uk-form">
                         <div class="uk-alert uk-alert-danger uk-hidden"></div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">金额:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="数量" class="uk-width-1-1">
+                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="金额" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -316,17 +333,17 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button id="minus_bank_funding_button" class="uk-button" data-uk-modal="{target:'#minus_bank_funding'}">减少银行资金</button>
+            <button id="minus_bank_funding_button" class="uk-button" data-uk-modal="{target:'#minus_bank_funding'}">减少本金</button>
             <div id="minus_bank_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
-                    <h1>减少银行资金</h1>
+                    <h1>减少本金</h1>
                     <form id="vm_minus_bank_funding" v-on="submit: submit" class="uk-form">
                         <div class="uk-alert uk-alert-danger uk-hidden"></div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">金额:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="数量" class="uk-width-1-1">
+                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="金额" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -343,17 +360,17 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button id="add_security_funding_button" class="uk-button" data-uk-modal="{target:'#add_security_funding'}">转入银证资金</button>
+            <button id="add_security_funding_button" class="uk-button" data-uk-modal="{target:'#add_security_funding'}">银证转入</button>
             <div id="add_security_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
-                    <h1>转入银证资金</h1>
+                    <h1>银证转入</h1>
                     <form id="vm_add_security_funding" v-on="submit: submit" class="uk-form">
                         <div class="uk-alert uk-alert-danger uk-hidden"></div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">金额:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="数量" class="uk-width-1-1">
+                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="金额" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
@@ -370,23 +387,50 @@ function initVM(data, action, vm_element, date_element) {
                 </div>
             </div>
 
-            <button id="minus_security_funding_button" class="uk-button" data-uk-modal="{target:'#minus_security_funding'}">转出银证资金</button>
+            <button id="minus_security_funding_button" class="uk-button" data-uk-modal="{target:'#minus_security_funding'}">银证转出</button>
             <div id="minus_security_funding" class="uk-modal">
                 <div class="uk-modal-dialog">
                     <a href="" class="uk-modal-close uk-close"></a>
-                    <h1>转出银证资金</h1>
+                    <h1>银证转出</h1>
                     <form id="vm_minus_security_funding" v-on="submit: submit" class="uk-form">
                         <div class="uk-alert uk-alert-danger uk-hidden"></div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">金额:</label>
                             <div class="uk-form-controls">
-                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="数量" class="uk-width-1-1">
+                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="金额" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
                                 <input id="minus_security_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                            </div>
+                        </div>
+                        <div class="uk-form-row">
+                            <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-save"></i> 执行</button>
+                            <a href="/" class="uk-button"><i class="uk-icon-times"></i> 取消</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <button id="modify_security_funding_button" class="uk-button" data-uk-modal="{target:'#modify_security_funding'}">银证修正</button>
+            <div id="modify_security_funding" class="uk-modal">
+                <div class="uk-modal-dialog">
+                    <a href="" class="uk-modal-close uk-close"></a>
+                    <h1>银证修正</h1>
+                    <form id="vm_modify_security_funding" v-on="submit: submit" class="uk-form">
+                        <div class="uk-alert uk-alert-danger uk-hidden"></div>
+                        <div class="uk-form-row">
+                            <label class="uk-form-label">金额:</label>
+                            <div class="uk-form-controls">
+                                <input v-model="funding_amount" name="funding_amount" type="text" placeholder="金额" class="uk-width-1-1">
+                            </div>
+                        </div>
+                        <div class="uk-form-row">
+                            <label class="uk-form-label">日期:</label>
+                            <div class="uk-form-controls">
+                                <input id="modify_security_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">

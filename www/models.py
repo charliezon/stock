@@ -79,7 +79,7 @@ class AccountAssetChange(Model):
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
     account_id = StringField(ddl='varchar(50)')
     change_amount = FloatField()
-    add_or_minus = BooleanField()
+    operation = IntegerField()  # 0: minus, 1: add, 2: set
     security_or_bank = BooleanField()
     date = StringField(default=today, ddl='varchar(50)')
     created_at = FloatField(default=time.time)

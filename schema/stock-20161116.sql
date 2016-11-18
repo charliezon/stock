@@ -28,7 +28,7 @@ CREATE TABLE `account_asset_change` (
   `id` varchar(50) NOT NULL,
   `account_id` varchar(50) NOT NULL,
   `change_amount` double NOT NULL,
-  `add_or_minus` tinyint(1) DEFAULT NULL,
+  `operation` int(10) NOT NULL,
   `security_or_bank` tinyint(1) DEFAULT NULL,
   `date` varchar(50) NOT NULL,
   `created_at` double NOT NULL,
@@ -195,7 +195,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES ('0014793002621243c1c1b1c205144478a7ab428ac6f36f4000','charliezon@gmail.com','14bc305cad2e7340f1592f794814140ac7d8f30e',0,'charlie','http://www.gravatar.com/avatar/593638ac6a1730571c846c1efeef9873?d=mm&s=120',1479300262.12498);
+INSERT INTO `users` VALUES ('0014793002621243c1c1b1c205144478a7ab428ac6f36f4000','test@gmail.com','14bc305cad2e7340f1592f794814140ac7d8f30e',0,'charlie','http://www.gravatar.com/avatar/593638ac6a1730571c846c1efeef9873?d=mm&s=120',1479300262.12498);
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
