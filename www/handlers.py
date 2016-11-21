@@ -311,6 +311,44 @@ async def api_get_account(request, *, id):
     return account
 
 @asyncio.coroutine
+@get('/api/total_assets')
+async def api_get_total_assets(request, *, account_id):
+    must_log_in(request)
+    account = await Account.find(account_id)
+    if account:
+        dates = []
+        data = []
+        all_account_records = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date')
+        if len(all_account_records)>0:
+            for record in all_account_records:
+                dates.append(record.date)
+                data.append(record.total_assets)
+            return dict(dates=dates, data=data)
+        else:
+            raise APIPermissionError()
+    else:
+        raise APIPermissionError()
+
+@asyncio.coroutine
+@get('/api/total_profit')
+async def api_get_total_profit(request, *, account_id):
+    must_log_in(request)
+    account = await Account.find(account_id)
+    if account:
+        dates = []
+        data = []
+        all_account_records = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date')
+        if len(all_account_records)>0:
+            for record in all_account_records:
+                dates.append(record.date)
+                data.append(record.total_profit)
+            return dict(dates=dates, data=data)
+        else:
+            raise APIPermissionError()
+    else:
+        raise APIPermissionError()
+
+@asyncio.coroutine
 @post('/api/accounts')
 async def api_create_account(request, *, name, commission_rate, initial_funding, date):
     must_log_in(request)

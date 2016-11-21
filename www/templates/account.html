@@ -4,6 +4,9 @@
 
 {% block beforehead %}
 
+<script src="/static/js/echarts/echarts.min.js"></script>
+<script src="/static/js/echarts/theme/shine.js"></script>
+
 <script>
 
 var
@@ -160,6 +163,113 @@ $(document).ready(function(){
             up_to_date_vm.date=getTodayString();
             $("#up_to_date_date").val(getTodayString());
         });
+
+    $("#total_assets_curve").css( 'width', $("#total_assets_curve").width() );
+    var total_assets_curve_chart = echarts.init(document.getElementById('total_assets_curve'), 'shine');
+    $.get('/api/total_assets', { account_id: "{{account.id}}" }).done(function (data) {
+        total_assets_curve_chart.setOption({
+            title: {
+                text: '总资产曲线',
+                subtext: '',
+                textAlign: 'center',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            toolbox: {
+                show: true,
+                feature: {
+                    saveAsImage: {}
+                }
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: data.dates,
+                splitLine: {
+                    show: true,
+                    interval: 'auto'
+                }
+            },
+            yAxis: {
+                type: 'value',
+                min: 180000,
+                axisLabel: {
+                    margin:2,
+                    formatter: '{value}'
+                }
+            },
+            series: [{
+                name: '总资产',
+                type: 'line',
+                smooth: true,
+                data: data.data,
+                animation: false,
+                itemStyle: {
+                    normal: {
+                        lineStyle: {
+                            color: 'rgb(255, 70, 131)'
+                        }
+                    }
+                }
+            }]
+        });
+    });
+
+
+    $("#total_profit_curve").css( 'width', $("#total_profit_curve").width() );
+    var total_profit_curve_chart = echarts.init(document.getElementById('total_profit_curve'), 'shine');
+    $.get('/api/total_profit', { account_id: "{{account.id}}" }).done(function (data) {
+        total_profit_curve_chart.setOption({
+            title: {
+                text: '总利润曲线',
+                subtext: '',
+                textAlign: 'center',
+                left: 'center'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            toolbox: {
+                show: true,
+                feature: {
+                    saveAsImage: {}
+                }
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: data.dates,
+                splitLine: {
+                    show: true,
+                    interval: 'auto'
+                }
+            },
+            yAxis: {
+                type: 'value',
+                max: -18000,
+                axisLabel: {
+                    margin:2,
+                    formatter: '{value}'
+                }
+            },
+            series: [{
+                name: '总利润',
+                type: 'line',
+                smooth: true,
+                data: data.data,
+                animation: false,
+                itemStyle: {
+                    normal: {
+                        lineStyle: {
+                            color: 'rgb(255, 70, 131)'
+                        }
+                    }
+                }
+            }]
+        });
+    });
 
 });
 
@@ -560,6 +670,15 @@ function initVM(data, action, vm_element, date_element) {
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+
+    <div class="uk-grid uk-grid-medium uk-grid-match" data-uk-grid-match="{target:'.uk-panel'}">
+        <div class="uk-width-1-2">
+            <div id="total_assets_curve" style="width: 100%;height:400px;"></div>
+        </div>
+        <div class="uk-width-1-2">
+            <div id="total_profit_curve" style="width: 100%;height:400px;"></div>
         </div>
     </div>
 {% endblock %}
