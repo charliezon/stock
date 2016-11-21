@@ -542,19 +542,19 @@ function initVM(data, action, vm_element, date_element) {
                         <tr>
                             <td>{{ account_record.date }}</td>
                             <td>牛</td>
-                            <td>{{account_record.principle|round(2)}}</td>
-                            <td>{{account_record.total_profit|round(2)}}</td>
-                            <td>{{account_record.total_assets|round(2)}}</td>
-                            <td>{{account_record.total_stock_value|round(2)}}</td>
-                            <td>{{account_record.security_funding|round(2)}}</td>
-                            <td>{{account_record.bank_funding|round(2)}}</td>
-                            <td>{{account_record.float_profit_lost|round(2)}}</td>
-                            <td>{{(account_record.stock_position|round(4))*100}}%</td>
+                            <td>{{account_record.principle|round(2, 'floor')}}</td>
+                            <td>{{account_record.total_profit|round(2, 'floor')}}</td>
+                            <td>{{account_record.total_assets|round(2, 'floor')}}</td>
+                            <td>{{account_record.total_stock_value|round(2, 'floor')}}</td>
+                            <td>{{account_record.security_funding|round(2, 'floor')}}</td>
+                            <td>{{account_record.bank_funding|round(2, 'floor')}}</td>
+                            <td>{{account_record.float_profit_lost|round(2, 'floor')}}</td>
+                            <td>{{(account_record.stock_position|round(4, 'floor'))*100}}%</td>
                             {% for stock in account_record.stock_hold_records %}
                                 <td>{{ stock.stock_name }}</td>
                                 <td>{{stock.stock_amount}}</td>
-                                <td>{{stock.stock_current_price|round(2)}}</td>
-                                <td>{{stock.stock_sell_price|round(2)}}</td>
+                                <td>{{stock.stock_current_price|round(2, 'floor')}}</td>
+                                <td>{{stock.stock_sell_price|round(2, 'floor')}}</td>
                             {% endfor %}
                         </tr>
                     {% endfor %}
