@@ -224,6 +224,23 @@ async def find_account_record(account_id, date):
             raise APIPermissionError()
     else:
         account_record = all_account_records[0]
+        stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+        if len(stocks) > 0:
+            total_stock_value = 0
+            float_profit_lost = 0
+            for stock in stocks:
+                current_price = get_current_price(stock.stock_code, date)
+                if current_price:
+                    stock.stock_current_price = current_price
+                total_stock_value = total_stock_value + stock.stock_amount * stock.stock_current_price
+                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                await stock.update()
+            account_record.total_stock_value = total_stock_value
+            account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
+            account_record.total_profit = account_record.total_assets - account_record.principle
+            account_record.stock_position = round(account_record.total_stock_value / account_record.total_assets, 4)
+            account_record.float_profit_lost = float_profit_lost
+            await account_record.update()
     return account_record
 
 @asyncio.coroutine
@@ -275,7 +292,8 @@ async def get_account(request, *, id):
         'minus_bank_funding_action' : '/api/minus_bank_funding',
         'add_security_funding_action' : '/api/add_security_funding',
         'minus_security_funding_action' : '/api/minus_security_funding',
-        'modify_security_funding_action' : '/api/modify_security_funding'
+        'modify_security_funding_action' : '/api/modify_security_funding',
+        'up_to_date_action' : '/api/up_to_date',
     }
 
 @asyncio.coroutine
@@ -749,5 +767,24 @@ async def api_modify_security_funding(request, *, funding_amount, date, account_
         date=date)
 
     await security_funding_change.save()
+
+    return accounts[0]
+
+@asyncio.coroutine
+@post('/api/up_to_date')
+async def api_up_to_date(request, *, date, account_id):
+    must_log_in(request)
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    if date.strip() > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    account_record = await find_account_record(account_id, date.strip())
 
     return accounts[0]

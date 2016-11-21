@@ -22,7 +22,10 @@ var
     minus_security_funding_action = '{{ minus_security_funding_action }}',
     minus_security_funding_vm,
     modify_security_funding_action = '{{ modify_security_funding_action }}',
-    modify_security_funding_vm;
+    modify_security_funding_vm,
+
+    up_to_date_action = '{{ up_to_date_action }}',
+    up_to_date_vm;
 
 
 $(document).ready(function(){
@@ -143,6 +146,19 @@ $(document).ready(function(){
             modify_security_funding_vm.funding_amount=0;
             modify_security_funding_vm.date=getTodayString();
             $("#modify_security_funding_date").val(getTodayString());
+        });
+
+    up_to_date_vm = initVM({
+        date: getTodayString()
+    },
+    up_to_date_action,
+    '#vm_up_to_date',
+    '#up_to_date_date');
+
+    $("#up_to_date_button").click(
+        function() {
+            up_to_date_vm.date=getTodayString();
+            $("#up_to_date_date").val(getTodayString());
         });
 
 });
@@ -431,6 +447,26 @@ function initVM(data, action, vm_element, date_element) {
                             <label class="uk-form-label">日期:</label>
                             <div class="uk-form-controls">
                                 <input id="modify_security_funding_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                            </div>
+                        </div>
+                        <div class="uk-form-row">
+                            <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-save"></i> 执行</button>
+                            <a href="/" class="uk-button"><i class="uk-icon-times"></i> 取消</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <button id="up_to_date_button" class="uk-button" data-uk-modal="{target:'#up_to_date'}">UP-TO-DATE</button>
+            <div id="up_to_date" class="uk-modal">
+                <div class="uk-modal-dialog">
+                    <a href="" class="uk-modal-close uk-close"></a>
+                    <h1>UP-TO-DATE</h1>
+                    <form id="vm_up_to_date" v-on="submit: submit" class="uk-form">
+                        <div class="uk-alert uk-alert-danger uk-hidden"></div>
+                        <div class="uk-form-row">
+                            <label class="uk-form-label">日期:</label>
+                            <div class="uk-form-controls">
+                                <input id="up_to_date_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
                             </div>
                         </div>
                         <div class="uk-form-row">
