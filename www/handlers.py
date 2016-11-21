@@ -56,6 +56,12 @@ async def cookie2user(cookie_str):
         logging.exception(e)
         return None
 
+@get('/test')
+def test(request):
+    return {
+        '__template__': 'test.html'
+    }
+
 @get('/')
 def index(request):
     if not has_logged_in(request):
