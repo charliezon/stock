@@ -224,7 +224,7 @@ async def find_account_record(account_id, date):
                 account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
                 account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
                 account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
-                account_record.float_profit_lost = float_profit_lost
+                account_record.float_profit_lost = (int(float_profit_lost*100))/100
                 await account_record.update()
         except Error as e:
             raise APIPermissionError()
@@ -246,7 +246,7 @@ async def find_account_record(account_id, date):
             account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
             account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
             account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
-            account_record.float_profit_lost = float_profit_lost
+            account_record.float_profit_lost = (int(float_profit_lost*100))/100
             await account_record.update()
     return account_record
 
@@ -519,7 +519,7 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     for stock in stocks:
         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
     
-    account_record.float_profit_lost = float_profit_lost
+    account_record.float_profit_lost = (int(float_profit_lost*100))/100
 
     await account_record.update()
     
@@ -584,7 +584,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     for stock in stocks:
         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
     
-    account_record.float_profit_lost = float_profit_lost
+    account_record.float_profit_lost = (int(float_profit_lost*100))/100
 
     await account_record.update()
     
