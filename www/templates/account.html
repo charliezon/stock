@@ -661,7 +661,7 @@ function initVM(data, action, vm_element, date_element) {
                             <td>{{account_record.security_funding}}</td>
                             <td>{{account_record.bank_funding}}</td>
                             <td>{{account_record.float_profit_lost}}</td>
-                            <td>{{account_record.stock_position*100}}%</td>
+                            <td>{{account_record.stock_position/100}}%</td>
                             {% for stock in account_record.stock_hold_records %}
                                 <td>{{ stock.stock_name }}</td>
                                 <td>{{stock.stock_amount}}</td>
