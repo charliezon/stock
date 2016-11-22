@@ -194,7 +194,8 @@ $(document).ready(function(){
             },
             yAxis: {
                 type: 'value',
-                min: 180000,
+                min: data.min,
+                max: data.max,
                 axisLabel: {
                     margin:2,
                     formatter: '{value}'
@@ -248,7 +249,8 @@ $(document).ready(function(){
             },
             yAxis: {
                 type: 'value',
-                max: -18000,
+                min: data.min,
+                max: data.max,
                 axisLabel: {
                     margin:2,
                     formatter: '{value}'

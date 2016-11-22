@@ -320,10 +320,16 @@ async def api_get_total_assets(request, *, account_id):
         data = []
         all_account_records = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date')
         if len(all_account_records)>0:
+            min_value = all_account_records[0].total_assets
+            max_value = all_account_records[0].total_assets
             for record in all_account_records:
                 dates.append(record.date)
                 data.append(record.total_assets)
-            return dict(dates=dates, data=data)
+                if record.total_assets>max_value:
+                    max_value = record.total_assets
+                if record.total_assets<min_value:
+                    min_value = record.total_assets
+            return dict(dates=dates, data=data, max=max_value, min=min_value)
         else:
             raise APIPermissionError()
     else:
@@ -339,10 +345,16 @@ async def api_get_total_profit(request, *, account_id):
         data = []
         all_account_records = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date')
         if len(all_account_records)>0:
+            min_value = all_account_records[0].total_profit
+            max_value = all_account_records[0].total_profit
             for record in all_account_records:
                 dates.append(record.date)
                 data.append(record.total_profit)
-            return dict(dates=dates, data=data)
+                if record.total_profit>max_value:
+                    max_value = record.total_profit
+                if record.total_profit<min_value:
+                    min_value = record.total_profit
+            return dict(dates=dates, data=data, max=max_value, min=min_value)
         else:
             raise APIPermissionError()
     else:
