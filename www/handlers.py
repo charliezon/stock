@@ -222,8 +222,8 @@ async def find_account_record(account_id, date):
                     await new_stock.save()
                 account_record.total_stock_value = total_stock_value
                 account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
-                account_record.total_profit = account_record.total_assets - account_record.principle
-                account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+                account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
+                account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
                 account_record.float_profit_lost = float_profit_lost
                 await account_record.update()
         except Error as e:
@@ -244,8 +244,8 @@ async def find_account_record(account_id, date):
                 await stock.update()
             account_record.total_stock_value = total_stock_value
             account_record.total_assets = account_record.security_funding + account_record.bank_funding + account_record.total_stock_value
-            account_record.total_profit = account_record.total_assets - account_record.principle
-            account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+            account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
+            account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
             account_record.float_profit_lost = float_profit_lost
             await account_record.update()
     return account_record
@@ -487,10 +487,10 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     account_record.total_stock_value = account_record.total_stock_value + stock_amount*current_price
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:
-        account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+        account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
     else:
         account_record.stock_position = 0
-    account_record.total_profit = account_record.total_assets - account_record.principle
+    account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
 
     sell_price = get_sell_price(stock_code.strip(), date.strip())
 
@@ -568,10 +568,10 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     account_record.total_stock_value = account_record.total_stock_value - stock_amount*exist_stocks[0].stock_current_price
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:
-        account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+        account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
     else:
         account_record.stock_position = 0
-    account_record.total_profit = account_record.total_assets - account_record.principle
+    account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
 
     if stock_amount == exist_stocks[0].stock_amount:
         await exist_stocks[0].remove()
@@ -721,7 +721,7 @@ async def api_add_bank_funding(request, *, funding_amount, date, account_id):
     account_record.principle = account_record.principle + funding_amount
     account_record.total_assets = account_record.total_assets + funding_amount
     if account_record.total_assets > 0:
-        account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+        account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
     else:
         account_record.stock_position = 0
     await account_record.update()
@@ -767,7 +767,7 @@ async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
     account_record.principle = account_record.principle - funding_amount
     account_record.total_assets = account_record.total_assets - funding_amount
     if account_record.total_assets > 0:
-        account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+        account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
     else:
         account_record.stock_position = 0
     await account_record.update()
@@ -809,10 +809,10 @@ async def api_modify_security_funding(request, *, funding_amount, date, account_
 
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:
-        account_record.stock_position = int(account_record.total_stock_value * 10000 / account_record.total_assets)
+        account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
     else:
         account_record.stock_position = 0
-    account_record.total_profit = account_record.total_assets - account_record.principle
+    account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
 
     await account_record.update()
 
