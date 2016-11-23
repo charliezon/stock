@@ -16,6 +16,26 @@ def get_new_code(code):
     else:
         return 'sh' + code;
 
+def find_current_price(stock_code):
+    result = False
+    new_code = get_new_code(stock_code)
+    try:
+        with request.urlopen('http://hq.sinajs.cn/list='+new_code) as f:
+            if f.status == 200:
+                data = f.read().decode('gb2312')
+                numbers = data.split(',');
+                if (len(numbers) >= 4):
+                    try:
+                        result = float(numbers[3].strip())
+                    except ValueError as e:
+                        logging.error(e)
+    except error.HTTPError as e:
+        logging.error(e)
+    except error.URLError as e:
+        logging.error(e)
+    finally:
+        return result
+
 def find_open_price(stock_code, year, month, day):
     result = False
     if (year >= 2000):
@@ -158,8 +178,11 @@ def get_stock(code):
         return get_stock_via_name(code)
 
 def get_current_price(stock_code, date):
-    numbers = date.split('-')
-    current_price = find_close_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+    if date != today():
+        numbers = date.split('-')
+        current_price = find_close_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+    else:
+        current_price = find_current_price(stock_code)
     if current_price:
         return current_price
     else:
