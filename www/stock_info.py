@@ -16,7 +16,7 @@ def get_new_code(code):
     else:
         return 'sh' + code;
 
-def find_current_price(stock_code):
+def find_price(stock_code, pos):
     result = False
     new_code = get_new_code(stock_code)
     try:
@@ -24,9 +24,9 @@ def find_current_price(stock_code):
             if f.status == 200:
                 data = f.read().decode('gb2312')
                 numbers = data.split(',');
-                if (len(numbers) >= 4):
+                if (len(numbers) >= pos+1):
                     try:
-                        result = float(numbers[3].strip())
+                        result = float(numbers[pos].strip())
                     except ValueError as e:
                         logging.error(e)
     except error.HTTPError as e:
@@ -35,6 +35,13 @@ def find_current_price(stock_code):
         logging.error(e)
     finally:
         return result
+
+
+def find_current_price(stock_code):
+    return find_price(stock_code, 3)
+
+def find_open_price_with_code(stock_code):
+    return find_price(stock_code, 1)
 
 def find_open_price(stock_code, year, month, day):
     result = False
@@ -189,8 +196,11 @@ def get_current_price(stock_code, date):
         return 0
 
 def get_open_price(stock_code, date):
-    numbers = date.split('-')
-    return find_open_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+    if date != today():
+        numbers = date.split('-')
+        return find_open_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+    else:
+        return find_open_price_with_code(stock_code)
 
 def get_sell_price(stock_code, date):
     open_price = get_open_price(stock_code, date)
