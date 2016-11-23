@@ -6,7 +6,7 @@
 
 __author__ = 'Chaoliang Zhong'
 
-import time, uuid
+import time, uuid, datetime
 
 from orm import Model, StringField, BooleanField, FloatField, IntegerField
 
@@ -15,6 +15,9 @@ def next_id():
 
 def today():
     return time.strftime("%Y-%m-%d", time.localtime())
+
+def convert_date(date):
+    return datetime.datetime.strptime(date,'%Y-%m-%d')
 
 class User(Model):
     __table__ = 'users'

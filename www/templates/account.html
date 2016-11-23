@@ -334,9 +334,11 @@ function initVM(data, action, vm_element, date_element) {
             <div class="uk-panel uk-panel-box">
                 <h3 class="uk-panel-title"><strong>操作建议</strong></h3>
                 <ul>
-                    <li>卖出万科100000股</li>
-                    <li>卖出百度100000股</li>
-                    <li>买入阿里巴巴1000000股</li>
+                    {% if advices %}
+                        {% for advice in advices %}
+                            <li>{{ advice }}</li>
+                        {% endfor %}
+                    {% endif %}
                 </ul>
             </div>
         </div>

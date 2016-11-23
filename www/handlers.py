@@ -5,13 +5,14 @@ __author__ = 'Chaoliang Zhong'
 
 ' url handlers '
 
-import re, time, json, logging, hashlib, base64, asyncio
+import re, time, json, logging, hashlib, base64, asyncio, datetime
 
+from datetime import timedelta
 from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today
+from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today, convert_date
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price
 
@@ -281,18 +282,28 @@ async def get_account(request, *, id):
     else:
         raise APIPermissionError()
     all_account_records = await AccountRecord.findAll('account_id=?', [id], orderBy='date desc')
-    for account_record in all_account_records:
-        stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
-        if len(stock_hold_records)<10:
-            for x in range(10-len(stock_hold_records)):
-                stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
-        account_record.stock_hold_records = stock_hold_records[:10]
+    most_recent_account_record = False
+    advices = []
+    if len(all_account_records)>0:
+        most_recent_account_record = all_account_records[0]
+        stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
+        if len(stocks) > 0:
+            for stock in stocks:
+                d_str = (convert_date(stock.stock_buy_date) + timedelta(days=31)).strftime("%Y-%m-%d")
+                advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+        for account_record in all_account_records:
+            stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
+            if len(stock_hold_records)<10:
+                for x in range(10-len(stock_hold_records)):
+                    stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+            account_record.stock_hold_records = stock_hold_records[:10]
     return {
         '__template__': 'account.html',
         'account': account,
         'accounts': all_accounts,
-        'most_recent_account_record': all_account_records[0],
+        'most_recent_account_record': most_recent_account_record,
         'all_account_records': all_account_records,
+        'advices': advices,
         'buy_action': '/api/buy',
         'sell_action': '/api/sell',
         'add_bank_funding_action' : '/api/add_bank_funding',
