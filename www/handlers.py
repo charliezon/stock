@@ -289,7 +289,10 @@ async def get_account(request, *, id):
         stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
         if len(stocks) > 0:
             for stock in stocks:
-                d_str = (convert_date(stock.stock_buy_date) + timedelta(days=31)).strftime("%Y-%m-%d")
+                d = convert_date(stock.stock_buy_date) + timedelta(days=31)
+                if d < datetime.datetime.today():
+                    d = datetime.datetime.today()
+                d_str = d.strftime("%Y-%m-%d")
                 advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
         for account_record in all_account_records:
             stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
