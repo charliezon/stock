@@ -205,7 +205,7 @@ def get_open_price(stock_code, date):
 def get_sell_price(stock_code, date):
     open_price = get_open_price(stock_code, date)
     if open_price:
-        return round(open_price*1.04, 2)
+        return (int(open_price*1.04*100))/100
     else:
         return 0
 
