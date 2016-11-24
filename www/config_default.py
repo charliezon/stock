@@ -42,7 +42,8 @@ configs = {
 
     'stock': {
         'exchange_fee_rate': 0.0006,
-        'tax_rate': 0.001
+        'tax_rate': 0.001,
+        'display_amount': 8
     },
 
 }

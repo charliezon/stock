@@ -300,10 +300,10 @@ async def get_account(request, *, id):
                     advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
         for account_record in all_account_records:
             stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
-            if len(stock_hold_records)<10:
-                for x in range(10-len(stock_hold_records)):
+            if len(stock_hold_records)<configs.stock.display_amount:
+                for x in range(configs.stock.display_amount-len(stock_hold_records)):
                     stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
-            account_record.stock_hold_records = stock_hold_records[:10]
+            account_record.stock_hold_records = stock_hold_records[:configs.stock.display_amount]
     return {
         '__template__': 'account.html',
         'account': account,
