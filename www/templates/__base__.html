@@ -37,7 +37,7 @@
                     </li>
                     {% endif %}
                     {% if account %}
-                    <li><a href="/"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
+                    <li><a href="/account/edit/{{account.id}}"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
                     {% endif %}
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}

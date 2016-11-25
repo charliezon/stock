@@ -134,6 +134,31 @@ def advanced_create_account(request):
         'action': '/api/advanced/accounts'
     }
 
+@asyncio.coroutine
+@get('/account/edit/')
+async def edit_account_1(request):
+    return web.HTTPFound('/')
+
+@asyncio.coroutine
+@get('/account/edit')
+async def edit_account_2(request):
+    return web.HTTPFound('/')
+
+@asyncio.coroutine
+@get('/account/edit/{id}')
+async def edit_account(request, *, id):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    accounts = await Account.findAll('id=? and user_id=?', [id, request.__user__.id])
+    if len(accounts)>0:
+        return {
+            '__template__': 'edit_account.html',
+            'account': accounts[0],
+            'action': '/api/modify/account'
+        }
+    else:
+        return web.HTTPFound('/')
+
 _RE_EMAIL = re.compile(r'^[a-z0-9\.\-\_]+\@[a-z0-9\-\_]+(\.[a-z0-9\-\_]+){1,4}$')
 _RE_SHA1 = re.compile(r'^[0-9a-f]{40}$')
 
@@ -284,7 +309,7 @@ async def get_account(request, *, id):
         account = all_accounts[0]
     else:
         raise APIPermissionError()
-    all_account_records = await AccountRecord.findAll('account_id=?', [id], orderBy='date desc')
+    all_account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
     advices = []
     if len(all_account_records)>0:
@@ -377,6 +402,33 @@ async def api_get_total_profit(request, *, account_id):
             raise APIPermissionError()
     else:
         raise APIPermissionError()
+
+@asyncio.coroutine
+@post('/api/modify/account')
+async def api_modify_account(request, *, id, name, commission_rate):
+    must_log_in(request)
+    account = await Account.find(id)
+    if not account:
+        raise APIValueError('name', '账户不存在')
+    if account.user_id != request.__user__.id:
+        raise APIValueError('name', '没有操作该账户的权限')
+    if not name or not name.strip():
+        raise APIValueError('name', '账户名称不能为空')
+    accounts = await Account.findAll('name=?', [name.strip()])
+    if len(accounts) > 0:
+        for a in accounts:
+            if a.id != id:
+                raise APIValueError('name', '账户名称已被用')
+    try:
+        commission_rate = float(commission_rate)
+    except ValueError as e:
+        raise APIValueError('commission_rate', '手续费率填写不正确')
+    if commission_rate < 0:
+        raise APIValueError('commission_rate', '手续费率不能小于0')
+    account.name = name.strip()
+    account.commission_rate = commission_rate
+    await account.update()
+    return account
 
 @asyncio.coroutine
 @post('/api/accounts')
