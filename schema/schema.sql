@@ -34,6 +34,8 @@ create table accounts (
     `name` varchar(50) not null,
     `commission_rate` real not null,
     `initial_funding` real not null,
+    `success_times` int(10) not null,
+    `fail_times` int(10) not null,
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)
@@ -66,6 +68,20 @@ create table stock_hold_records (
     `stock_buy_price` real not null,
     `stock_sell_price` real not null,
     `stock_buy_date` varchar(50) not null,
+    `created_at` real not null,
+    key `idx_created_at` (`created_at`),
+    primary key (`id`)
+) engine=innodb default charset=utf8;
+
+create table stock_trade_records (
+    `id` varchar(50) not null,
+    `account_record_id` varchar(50) not null,
+    `stock_code` varchar(50) not null,
+    `stock_name` varchar(50) not null,
+    `stock_amount` int(100) not null,
+    `stock_price` real not null,
+    `stock_date` varchar(50) not null,
+    `stock_operation` bool null,
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)

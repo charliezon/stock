@@ -12,7 +12,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, AccountAssetChange, next_id, today, convert_date
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, next_id, today, convert_date
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price
 
@@ -343,6 +343,10 @@ async def get_account(request, *, id):
         for account_record in all_account_records:
             for x in range(max_amount-len(account_record.stock_hold_records)):
                 account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+    if account.success_times + account.fail_times==0:
+        account.success_ratio = 0
+    else:
+        account.success_ratio = int(account.success_times*10000/(account.success_times + account.fail_times))/100
     return {
         '__template__': 'account.html',
         'account': account,
@@ -590,7 +594,7 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         new_stock = StockHoldRecord(
             account_record_id=account_record.id,
             stock_code=stock_code.strip(),
-            stock_name=stock_name,
+            stock_name=stock_name.strip(),
             stock_amount=stock_amount,
             stock_current_price=current_price,
             stock_buy_price=stock_price,
@@ -606,6 +610,16 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     account_record.float_profit_lost = (int(float_profit_lost*100))/100
 
     await account_record.update()
+
+    stock_trade = StockTradeRecord(
+        account_record_id=account_record.id,
+        stock_code=stock_code.strip(),
+        stock_name=stock_name.strip(),
+        stock_amount=stock_amount,
+        stock_price=stock_price,
+        stock_operation=True,
+        stock_date=date.strip())
+    await stock_trade.save()
     
     return accounts[0]
 
@@ -658,7 +672,33 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
 
     if stock_amount == exist_stocks[0].stock_amount:
-        await exist_stocks[0].remove()
+        buy_date = exist_stocks[0].stock_buy_date
+        rows = await exist_stocks[0].remove()
+        if rows != 1:
+            raise APIValueError('stock_name', '卖出失败')
+        stock_trade = StockTradeRecord(
+            account_record_id=account_record.id,
+            stock_code=stock_code.strip(),
+            stock_name=stock_name.strip(),
+            stock_amount=stock_amount,
+            stock_price=stock_price,
+            stock_operation=False,
+            stock_date=date.strip())
+        rows = await stock_trade.save()
+        if rows != 1:
+            raise APIValueError('stock_name', '卖出失败')
+        stock_trades = await StockTradeRecord.findAll('account_record_id=? and stock_code=? and stock_date>=?', [account_record.id, stock_code.strip(), buy_date])
+        profit = 0
+        for trade in stock_trades:
+            if trade.stock_operation:
+                profit = profit - trade.stock_amount*trade.stock_price - compute_fee(True, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
+            else:
+                profit = profit + trade.stock_amount*trade.stock_price - compute_fee(False, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
+        if profit>0:
+            accounts[0].success_times = accounts[0].success_times + 1;
+        else:
+            accounts[0].fail_times = accounts[0].fail_times + 1;
+        await accounts[0].update()
     else:
         exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
         await exist_stocks[0].update()
@@ -671,7 +711,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     account_record.float_profit_lost = (int(float_profit_lost*100))/100
 
     await account_record.update()
-    
+
     return accounts[0]
 
 

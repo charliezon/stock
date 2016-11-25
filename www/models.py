@@ -44,6 +44,8 @@ class Account(Model):
     name = StringField(ddl='varchar(50)')
     commission_rate = FloatField()
     initial_funding = FloatField()
+    success_times = IntegerField(default=0)
+    fail_times = IntegerField(default=0)
     created_at = FloatField(default=time.time)
 
 class AccountRecord(Model):
@@ -74,6 +76,19 @@ class StockHoldRecord(Model):
     stock_buy_price = FloatField()
     stock_sell_price = FloatField()
     stock_buy_date = StringField(default=today, ddl='varchar(50)')
+    created_at = FloatField(default=time.time)
+
+class StockTradeRecord(Model):
+    __table__ = 'stock_trade_records'
+
+    id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
+    account_record_id = StringField(ddl='varchar(50)')
+    stock_code = StringField(ddl='varchar(50)')
+    stock_name = StringField(ddl='varchar(50)')
+    stock_amount = IntegerField()
+    stock_price = FloatField()
+    stock_date = StringField(default=today, ddl='varchar(50)')
+    stock_operation = BooleanField()  # True: buy, False: sell
     created_at = FloatField(default=time.time)
 
 class AccountAssetChange(Model):
