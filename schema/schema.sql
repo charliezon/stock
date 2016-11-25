@@ -82,6 +82,7 @@ create table stock_trade_records (
     `stock_price` real not null,
     `stock_date` varchar(50) not null,
     `stock_operation` bool null,
+    `trade_series` varchar(50) not null,
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`id`)

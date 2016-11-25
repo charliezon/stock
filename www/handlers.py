@@ -618,6 +618,7 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         stock_amount=stock_amount,
         stock_price=stock_price,
         stock_operation=True,
+        trade_series='0',
         stock_date=date.strip())
     await stock_trade.save()
     
@@ -673,6 +674,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
 
     if stock_amount == exist_stocks[0].stock_amount:
         buy_date = exist_stocks[0].stock_buy_date
+        trade_series = exist_stocks[0].id
         rows = await exist_stocks[0].remove()
         if rows != 1:
             raise APIValueError('stock_name', '卖出失败')
@@ -683,17 +685,20 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
             stock_amount=stock_amount,
             stock_price=stock_price,
             stock_operation=False,
+            trade_series='0',
             stock_date=date.strip())
         rows = await stock_trade.save()
         if rows != 1:
             raise APIValueError('stock_name', '卖出失败')
-        stock_trades = await StockTradeRecord.findAll('account_record_id=? and stock_code=? and stock_date>=?', [account_record.id, stock_code.strip(), buy_date])
+        stock_trades = await StockTradeRecord.findAll('account_record_id=? and stock_code=? and stock_date>=? and trade_series=?', [account_record.id, stock_code.strip(), buy_date, '0'])
         profit = 0
         for trade in stock_trades:
             if trade.stock_operation:
                 profit = profit - trade.stock_amount*trade.stock_price - compute_fee(True, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
             else:
                 profit = profit + trade.stock_amount*trade.stock_price - compute_fee(False, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
+            trade.trade_series = trade_series
+            await trade.update()
         if profit>0:
             accounts[0].success_times = accounts[0].success_times + 1;
         else:

@@ -89,6 +89,7 @@ class StockTradeRecord(Model):
     stock_price = FloatField()
     stock_date = StringField(default=today, ddl='varchar(50)')
     stock_operation = BooleanField()  # True: buy, False: sell
+    trade_series = StringField(ddl='varchar(50)')
     created_at = FloatField(default=time.time)
 
 class AccountAssetChange(Model):
