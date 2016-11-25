@@ -116,21 +116,27 @@ def signout(request):
     logging.info('user signed out.')
     return r
 
+@asyncio.coroutine
 @get('/account/create')
-def create_account(request):
+async def create_account(request):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
     return {
         '__template__': 'create_account.html',
+        'accounts': all_accounts,
         'action': '/api/accounts'
     }
 
+@asyncio.coroutine
 @get('/account/advanced/create')
-def advanced_create_account(request):
+async def advanced_create_account(request):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
     return {
         '__template__': 'advanced_create_account.html',
+        'accounts': all_accounts,
         'action': '/api/advanced/accounts'
     }
 
@@ -151,8 +157,10 @@ async def edit_account(request, *, id):
         return web.HTTPFound('/signin')
     accounts = await Account.findAll('id=? and user_id=?', [id, request.__user__.id])
     if len(accounts)>0:
+        all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
         return {
             '__template__': 'edit_account.html',
+            'accounts': all_accounts,
             'account': accounts[0],
             'action': '/api/modify/account'
         }
