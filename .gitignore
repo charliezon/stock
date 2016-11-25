@@ -17,3 +17,6 @@ build
 
 # directory
 Dockerfiles/*
+
+#SQL
+stock-2016*.sql
