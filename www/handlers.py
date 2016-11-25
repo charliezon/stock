@@ -14,7 +14,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, next_id, today, convert_date
 from config import configs
-from stock_info import get_current_price, compute_fee, get_sell_price
+from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -534,10 +534,28 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
 @post('/api/buy')
 async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount, date, account_id):
     must_log_in(request)
-    if not stock_name or not stock_name.strip():
-        raise APIValueError('stock_name', '股票名称不能为空')
-    if not stock_code or not stock_code.strip():
-        raise APIValueError('stock_code', '股票代码不能为空')
+    if (not stock_name or not stock_name.strip()) and (not stock_code or not stock_code.strip()):
+        raise APIValueError('stock_name', '股票名称和代码不能都为空')
+    if stock_name and stock_name.strip():
+        stock_name = stock_name.strip()
+        stock_inf = get_stock_via_name(stock_name)
+        if not stock_inf:
+            raise APIValueError('stock_name', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_name', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_name', '股票不唯一')
+        stock_code = stock_inf[0]['stock_code']
+    elif stock_code and stock_code.strip():
+        stock_code = stock_code.strip()
+        stock_inf = get_stock_via_code(stock_code)
+        if not stock_inf:
+            raise APIValueError('stock_code', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_code', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_code', '股票不唯一')
+        stock_name = stock_inf[0]['stock_name']
     try:
         stock_price = float(stock_price)
     except ValueError as e:
@@ -556,14 +574,15 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         raise APIValueError('date', '日期不能为空')
     if date.strip() == '':
         raise APIValueError('date', '请选择日期')
-    if date.strip() > today():
+    date = date.strip()
+    if date > today():
         raise APIValueError('date', '日期不能晚于今天')
 
     accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date.strip())
+    account_record = await find_account_record(account_id, date)
 
     fee = compute_fee(True, accounts[0].commission_rate, stock_code, stock_price, stock_amount)
     money = stock_amount * stock_price + fee
@@ -571,7 +590,7 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
 
     account_record.security_funding = account_record.security_funding - money
-    current_price = get_current_price(stock_code.strip(), date.strip())
+    current_price = get_current_price(stock_code, date)
     account_record.total_stock_value = account_record.total_stock_value + stock_amount*current_price
     account_record.total_assets = account_record.total_stock_value + account_record.bank_funding + account_record.security_funding
     if account_record.total_assets >0:
@@ -580,26 +599,26 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         account_record.stock_position = 0
     account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
 
-    sell_price = get_sell_price(stock_code.strip(), date.strip())
+    sell_price = get_sell_price(stock_code, date)
 
-    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
+    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code])
     if len(exist_stocks) > 0:
         exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
         exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
         exist_stocks[0].stock_sell_price = sell_price
-        exist_stocks[0].stock_buy_date = date.strip()
+        exist_stocks[0].stock_buy_date = date
         exist_stocks[0].stock_current_price=current_price
         await exist_stocks[0].update()
     else:
         new_stock = StockHoldRecord(
             account_record_id=account_record.id,
-            stock_code=stock_code.strip(),
-            stock_name=stock_name.strip(),
+            stock_code=stock_code,
+            stock_name=stock_name,
             stock_amount=stock_amount,
             stock_current_price=current_price,
             stock_buy_price=stock_price,
             stock_sell_price=sell_price,
-            stock_buy_date=date.strip())
+            stock_buy_date=date)
         await new_stock.save()
 
     float_profit_lost = 0
@@ -612,14 +631,14 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     await account_record.update()
 
     stock_trade = StockTradeRecord(
-        account_record_id=account_record.id,
-        stock_code=stock_code.strip(),
-        stock_name=stock_name.strip(),
+        account_id=accounts[0].id,
+        stock_code=stock_code,
+        stock_name=stock_name,
         stock_amount=stock_amount,
         stock_price=stock_price,
         stock_operation=True,
         trade_series='0',
-        stock_date=date.strip())
+        stock_date=date)
     await stock_trade.save()
     
     return accounts[0]
@@ -628,10 +647,28 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
 @post('/api/sell')
 async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount, date, account_id):
     must_log_in(request)
-    if not stock_name or not stock_name.strip():
-        raise APIValueError('stock_name', '股票名称不能为空')
-    if not stock_code or not stock_code.strip():
-        raise APIValueError('stock_code', '股票代码不能为空')
+    if (not stock_name or not stock_name.strip()) and (not stock_code or not stock_code.strip()):
+        raise APIValueError('stock_name', '股票名称和代码不能都为空')
+    if stock_name and stock_name.strip():
+        stock_name = stock_name.strip()
+        stock_inf = get_stock_via_name(stock_name)
+        if not stock_inf:
+            raise APIValueError('stock_name', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_name', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_name', '股票不唯一')
+        stock_code = stock_inf[0]['stock_code']
+    elif stock_code and stock_code.strip():
+        stock_code = stock_code.strip()
+        stock_inf = get_stock_via_code(stock_code)
+        if not stock_inf:
+            raise APIValueError('stock_code', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_code', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_code', '股票不唯一')
+        stock_name = stock_inf[0]['stock_name']
     try:
         stock_price = float(stock_price)
     except ValueError as e:
@@ -650,14 +687,15 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
         raise APIValueError('date', '日期不能为空')
     if date.strip() == '':
         raise APIValueError('date', '请选择日期')
-    if date.strip() > today():
+    date = date.strip()
+    if date > today():
         raise APIValueError('date', '日期不能晚于今天')
 
     accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
     if len(accounts) <=0:
         raise APIPermissionError()
-    account_record = await find_account_record(account_id, date.strip())
-    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code.strip()])
+    account_record = await find_account_record(account_id, date)
+    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code])
     if len(exist_stocks) <= 0 or exist_stocks[0].stock_amount < stock_amount:
         raise APIValueError('stock_amount', '股票数量不足')
 
@@ -672,25 +710,26 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
         account_record.stock_position = 0
     account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
 
+    stock_trade = StockTradeRecord(
+        account_id=accounts[0].id,
+        stock_code=stock_code,
+        stock_name=stock_name,
+        stock_amount=stock_amount,
+        stock_price=stock_price,
+        stock_operation=False,
+        trade_series='0',
+        stock_date=date)
+    rows = await stock_trade.save()
+    if rows != 1:
+        raise APIValueError('stock_name', '卖出失败')
+
     if stock_amount == exist_stocks[0].stock_amount:
         buy_date = exist_stocks[0].stock_buy_date
         trade_series = exist_stocks[0].id
         rows = await exist_stocks[0].remove()
         if rows != 1:
             raise APIValueError('stock_name', '卖出失败')
-        stock_trade = StockTradeRecord(
-            account_record_id=account_record.id,
-            stock_code=stock_code.strip(),
-            stock_name=stock_name.strip(),
-            stock_amount=stock_amount,
-            stock_price=stock_price,
-            stock_operation=False,
-            trade_series='0',
-            stock_date=date.strip())
-        rows = await stock_trade.save()
-        if rows != 1:
-            raise APIValueError('stock_name', '卖出失败')
-        stock_trades = await StockTradeRecord.findAll('account_record_id=? and stock_code=? and stock_date>=? and trade_series=?', [account_record.id, stock_code.strip(), buy_date, '0'])
+        stock_trades = await StockTradeRecord.findAll('account_id=? and stock_code=? and stock_date>=? and trade_series=?', [accounts[0].id, stock_code, buy_date, '0'])
         profit = 0
         for trade in stock_trades:
             if trade.stock_operation:

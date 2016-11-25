@@ -82,7 +82,7 @@ class StockTradeRecord(Model):
     __table__ = 'stock_trade_records'
 
     id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
-    account_record_id = StringField(ddl='varchar(50)')
+    account_id = StringField(ddl='varchar(50)')
     stock_code = StringField(ddl='varchar(50)')
     stock_name = StringField(ddl='varchar(50)')
     stock_amount = IntegerField()

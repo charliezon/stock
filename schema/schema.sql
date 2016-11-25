@@ -75,7 +75,7 @@ create table stock_hold_records (
 
 create table stock_trade_records (
     `id` varchar(50) not null,
-    `account_record_id` varchar(50) not null,
+    `account_id` varchar(50) not null,
     `stock_code` varchar(50) not null,
     `stock_name` varchar(50) not null,
     `stock_amount` int(100) not null,
