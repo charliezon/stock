@@ -181,6 +181,13 @@ function getTodayString() {
     return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
 }
 
+function getCurrentTime() {
+    var today = new Date(),
+        hh = today.getHours(),
+        mm = today.getMinutes();
+    return hh + ':' + (mm < 10 ? '0' : '') + mm;
+}
+
 
 
 $(function() {

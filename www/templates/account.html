@@ -316,7 +316,11 @@ function load_account_records(page) {
     $.get('/account_records/{{account.id}}/'+page).done(function (data) {
         $('#account_records_table').html(data);
         if ($('#'+getTodayString()+'-record').length>0) {
-            setInterval("update_today_account_record(getTodayString())", {{ refresh_interval }});
+            update_today_account_record(getTodayString());
+            current_time = getCurrentTime();
+            if (current_time>'09:30' && current_time<'15:00') {
+                setInterval("update_today_account_record(getTodayString())", {{ refresh_interval }});
+            }
         }
     });
 }
