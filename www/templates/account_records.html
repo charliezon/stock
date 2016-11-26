@@ -1,0 +1,46 @@
+{% if account_records|length>0 %}
+    <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed uk-text-nowrap">
+        <thead>
+            <tr>
+                <th>日期</th>
+                <th>大盘</th>
+                <th>本金</th>
+                <th>利润</th>
+                <th>总资产</th>
+                <th>总市值</th>
+                <th>银证资金</th>
+                <th>银行资金</th>
+                <th>浮动盈亏</th>
+                <th>仓位</th>
+                {% for i in range(account_records[0].stock_hold_records|length) %}
+                    <th>股票</th>
+                    <th>数量</th>
+                    <th>当前价</th>
+                    <th>卖出价</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for account_record in account_records %}
+                <tr id="{{account_record.date}}-record">
+                    <td>{{account_record.date}}</td>
+                    <td>牛</td>
+                    <td>{{account_record.principle}}</td>
+                    <td>{{account_record.total_profit}}</td>
+                    <td>{{account_record.total_assets}}</td>
+                    <td>{{account_record.total_stock_value}}</td>
+                    <td>{{account_record.security_funding}}</td>
+                    <td>{{account_record.bank_funding}}</td>
+                    <td>{{account_record.float_profit_lost}}</td>
+                    <td>{{account_record.stock_position}}%</td>
+                    {% for stock in account_record.stock_hold_records %}
+                        <td>{{ stock.stock_name }}</td>
+                        <td>{{stock.stock_amount}}</td>
+                        <td>{{stock.stock_current_price}}</td>
+                        <td>{{stock.stock_sell_price}}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}

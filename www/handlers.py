@@ -317,11 +317,11 @@ async def get_account(request, *, id):
         account = all_accounts[0]
     else:
         raise APIPermissionError()
-    all_account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
+    account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
     advices = []
-    if len(all_account_records)>0:
-        most_recent_account_record = all_account_records[0]
+    if len(account_records)>0:
+        most_recent_account_record = account_records[0]
         stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
         if len(stocks) > 0:
             for stock in stocks:
@@ -331,32 +331,21 @@ async def get_account(request, *, id):
                 else:
                     d_str = d.strftime("%Y-%m-%d")
                     advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
-        max_amount = 0
-        for account_record in all_account_records:
-            stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
-            if len(stock_hold_records)>0:
-                account_record.stock_hold_records = stock_hold_records
-                if len(stock_hold_records)>max_amount:
-                    max_amount = len(stock_hold_records)
-            else:
-                account_record.stock_hold_records = []
-        for account_record in all_account_records:
-            for x in range(max_amount-len(account_record.stock_hold_records)):
-                account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
         account.success_ratio = int(account.success_times*10000/(account.success_times + account.fail_times))/100
 
-    stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id], orderBy='stock_date desc')
+    stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id])
+
+    all_account_records_amount = len(account_records)
+    all_stock_trades_amount = len(stock_trades)
 
     return {
         '__template__': 'account.html',
         'account': account,
         'accounts': all_accounts,
-        'stock_trades': stock_trades,
         'most_recent_account_record': most_recent_account_record,
-        'all_account_records': all_account_records,
         'advices': advices,
         'buy_action': '/api/buy',
         'sell_action': '/api/sell',
@@ -366,7 +355,71 @@ async def get_account(request, *, id):
         'minus_security_funding_action' : '/api/minus_security_funding',
         'modify_security_funding_action' : '/api/modify_security_funding',
         'up_to_date_action' : '/api/up_to_date',
+        'account_record_items_on_page' : configs.stock.account_record_items_on_page,
+        'stock_trade_items_on_page' : configs.stock.stock_trade_items_on_page,
+        'all_account_records_amount': all_account_records_amount,
+        'all_stock_trades_amount': all_stock_trades_amount
     }
+
+@asyncio.coroutine
+@get('/account_records/{account_id}/{page}')
+async def get_account_records(request, *, account_id, page):
+    must_log_in(request)
+    try:
+        page = int(page)
+    except ValueError as e:
+        raise APIPermissionError()
+    accounts = await Account.findAll('id=? and user_id=?', [account_id, request.__user__.id])
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    if (len(accounts) > 0):
+        account = accounts[0]
+    elif (len(all_accounts) > 0):
+        account = all_accounts[0]
+    else:
+        raise APIPermissionError()
+    account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc', limit=((page-1)*configs.stock.account_record_items_on_page, configs.stock.account_record_items_on_page))
+    if len(account_records)>0:
+        max_amount = 0
+        for account_record in account_records:
+            stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
+            if len(stock_hold_records)>0:
+                account_record.stock_hold_records = stock_hold_records
+                if len(stock_hold_records)>max_amount:
+                    max_amount = len(stock_hold_records)
+            else:
+                account_record.stock_hold_records = []
+        for account_record in account_records:
+            for x in range(max_amount-len(account_record.stock_hold_records)):
+                account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+
+    return {
+        '__template__': 'account_records.html',
+        'account_records': account_records
+    }
+
+@asyncio.coroutine
+@get('/stock_trades/{account_id}/{page}')
+async def get_stock_trades(request, *, account_id, page):
+    must_log_in(request)
+    try:
+        page = int(page)
+    except ValueError as e:
+        raise APIPermissionError()
+    accounts = await Account.findAll('id=? and user_id=?', [account_id, request.__user__.id])
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    if (len(accounts) > 0):
+        account = accounts[0]
+    elif (len(all_accounts) > 0):
+        account = all_accounts[0]
+    else:
+        raise APIPermissionError()
+    stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id], orderBy='stock_date desc', limit=((page-1)*configs.stock.stock_trade_items_on_page, configs.stock.stock_trade_items_on_page))
+
+    return {
+        '__template__': 'stock_trades.html',
+        'stock_trades': stock_trades
+    }
+
 
 @asyncio.coroutine
 @get('/api/accounts/{id}')
