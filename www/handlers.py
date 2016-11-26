@@ -5,7 +5,7 @@ __author__ = 'Chaoliang Zhong'
 
 ' url handlers '
 
-import re, time, json, logging, hashlib, base64, asyncio, datetime
+import re, time, json, logging, hashlib, base64, asyncio, datetime, random
 
 from datetime import timedelta
 from aiohttp import web
@@ -358,7 +358,8 @@ async def get_account(request, *, id):
         'account_record_items_on_page' : configs.stock.account_record_items_on_page,
         'stock_trade_items_on_page' : configs.stock.stock_trade_items_on_page,
         'all_account_records_amount': all_account_records_amount,
-        'all_stock_trades_amount': all_stock_trades_amount
+        'all_stock_trades_amount': all_stock_trades_amount,
+        'refresh_interval': configs.stock.refresh_interval*60000
     }
 
 @asyncio.coroutine
@@ -395,6 +396,55 @@ async def get_account_records(request, *, account_id, page):
     return {
         '__template__': 'account_records.html',
         'account_records': account_records
+    }
+
+@asyncio.coroutine
+@get('/account_record/{account_id}/{date}/{stock_amount}')
+async def get_account_record(request, *, account_id, date, stock_amount):
+    must_log_in(request)
+    try:
+        stock_amount = int(stock_amount)
+    except ValueError as e:
+        raise APIPermissionError()
+    accounts = await Account.findAll('id=? and user_id=?', [account_id, request.__user__.id])
+    if (len(accounts) > 0):
+        account = accounts[0]
+    else:
+        raise APIPermissionError()
+    account_records = await AccountRecord.findAll('account_id=? and date=?', [account.id, date])
+    if len(account_records)>0:
+        account_record = account_records[0]
+        stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
+        if len(stock_hold_records)>0:
+            price_update = False
+            float_profit_lost = 0
+            total_stock_value = 0
+            for stock in stock_hold_records:
+                # TODO 改成从数据库读取
+                current_price = get_current_price(stock.stock_code, date)
+                if current_price:
+                    stock.stock_current_price = current_price
+                    await stock.update()
+                    price_update = True
+                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                total_stock_value = total_stock_value + stock.stock_current_price*stock.stock_amount
+            if price_update:
+                account_record.float_profit_lost = (int(float_profit_lost*100))/100
+                account_record.total_stock_value = (int(total_stock_value*100))/100
+                account_record.total_assets = (int((account_record.total_stock_value + account_record.security_funding + account_record.bank_funding)*100))/100
+                account_record.total_profit = (int((account_record.total_assets - account_record.principle)*100))/100
+                account_record.stock_position = (int(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+                rows = await account_record.update()
+            account_record.stock_hold_records = stock_hold_records
+        else:
+            account_record.stock_hold_records = []
+        for x in range(stock_amount-len(account_record.stock_hold_records)):
+            account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+    else:
+        raise APIPermissionError()
+    return {
+        '__template__': 'account_record.html',
+        'account_record': account_record
     }
 
 @asyncio.coroutine

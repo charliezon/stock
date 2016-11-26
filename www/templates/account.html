@@ -315,12 +315,36 @@ function initVM(data, action, vm_element, date_element) {
 function load_account_records(page) {
     $.get('/account_records/{{account.id}}/'+page).done(function (data) {
         $('#account_records_table').html(data);
+        if ($('#'+getTodayString()+'-record').length>0) {
+            setInterval("update_today_account_record(getTodayString())", {{ refresh_interval }});
+        }
     });
 }
 
 function load_stock_trades(page) {
     $.get('/stock_trades/{{account.id}}/'+page).done(function (data) {
         $('#stock_trades_table').html(data);
+    });
+}
+
+function update_today_account_record(date) {
+    stock_amount = ($('#'+date+'-record').find('td').length-10)/4;
+    $.get('/account_record/{{account.id}}/'+date+'/'+stock_amount).done(function (data) {
+        $('#'+date+'-record').html(data);
+        {% if most_recent_account_record and account %}
+            content = '<li>名称：{{account.name}}</li>'+
+                        '<li>佣金率：{{account.commission_rate}}</li>'+
+                        '<li>仓位：'+$('#current_stock_position').html()+'</li>'+
+                        '<li>银证资金：{{most_recent_account_record.security_funding}}</li>'+
+                        '<li>银行资金：{{most_recent_account_record.bank_funding}}</li>'+
+                        '<li>总市值：'+$('#current_total_stock_value').html()+'</li>'+
+                        '<li>总资产：'+$('#current_total_assets').html()+'</li>'+
+                        '<li>浮动盈亏：'+$('#current_float_profit_lost').html()+'</li>'+
+                        '<li>利润：'+$('#current_total_profit').html()+'</li>'+
+                        '<li>本金：{{most_recent_account_record.principle}}</li>'+
+                        '<li>成功率：{{account.success_ratio}}%</li>';
+            $('#account_info').html(content);
+        {% endif %}
     });
 }
 
@@ -336,7 +360,7 @@ function load_stock_trades(page) {
         <div class="uk-width-1-2">
             <div class="uk-panel uk-panel-box">
                 <h3 class="uk-panel-title"><strong>账户信息</strong></h3>
-                <ul>
+                <ul id="account_info">
                     {% if most_recent_account_record and account %}
                     <li>名称：{{account.name}}</li>
                     <li>佣金率：{{account.commission_rate}}</li>
