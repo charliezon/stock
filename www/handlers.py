@@ -1121,3 +1121,17 @@ async def api_up_to_date(request, *, date, account_id):
     account_record = await find_account_record(account_id, date.strip())
 
     return accounts[0]
+
+@asyncio.coroutine
+@get('/param_statistical')
+async def do_param_statistical(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    check_admin(request)
+
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    return {
+        '__template__': 'param_statistical.html',
+        'accounts': all_accounts,
+        'action': ''
+    }
