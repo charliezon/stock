@@ -28,7 +28,23 @@ var
     modify_security_funding_vm,
 
     up_to_date_action = '{{ up_to_date_action }}',
-    up_to_date_vm;
+    up_to_date_vm,
+
+    total_assets_curve_chart, 
+    total_assets_curve_chart_title = '总资产曲线', 
+    total_assets_curve_chart_min,
+    total_assets_curve_chart_max, 
+    total_assets_curve_chart_dates, 
+    total_assets_curve_chart_sub_title = '总资产', 
+    total_assets_curve_chart_data,
+
+    total_profit_curve_chart, 
+    total_profit_curve_chart_title = '总利润曲线', 
+    total_profit_curve_chart_min,
+    total_profit_curve_chart_max, 
+    total_profit_curve_chart_dates, 
+    total_profit_curve_chart_sub_title = '总利润', 
+    total_profit_curve_chart_data;
 
 
 $(document).ready(function(){
@@ -165,112 +181,24 @@ $(document).ready(function(){
         });
 
     $("#total_assets_curve").css( 'width', $("#total_assets_curve").width() );
-    var total_assets_curve_chart = echarts.init(document.getElementById('total_assets_curve'), 'shine');
+    total_assets_curve_chart = echarts.init(document.getElementById('total_assets_curve'), 'shine');
     $.get('/api/total_assets', { account_id: "{{account.id}}" }).done(function (data) {
-        total_assets_curve_chart.setOption({
-            title: {
-                text: '总资产曲线',
-                subtext: '',
-                textAlign: 'center',
-                left: 'center'
-            },
-            tooltip: {
-                trigger: 'axis'
-            },
-            toolbox: {
-                show: true,
-                feature: {
-                    saveAsImage: {}
-                }
-            },
-            xAxis: {
-                type: 'category',
-                boundaryGap: false,
-                data: data.dates,
-                splitLine: {
-                    show: true,
-                    interval: 'auto'
-                }
-            },
-            yAxis: {
-                type: 'value',
-                min: data.min,
-                max: data.max,
-                axisLabel: {
-                    margin:2,
-                    formatter: '{value}'
-                }
-            },
-            series: [{
-                name: '总资产',
-                type: 'line',
-                smooth: true,
-                data: data.data,
-                animation: false,
-                itemStyle: {
-                    normal: {
-                        lineStyle: {
-                            color: 'rgb(255, 70, 131)'
-                        }
-                    }
-                }
-            }]
-        });
+        total_assets_curve_chart_min = data.min;
+        total_assets_curve_chart_max = data.max;
+        total_assets_curve_chart_dates = data.dates;
+        total_assets_curve_chart_data = data.data;
+        set_chart_option(total_assets_curve_chart, total_assets_curve_chart_title, data.min, data.max, data.dates, total_assets_curve_chart_sub_title, data.data);
     });
 
 
     $("#total_profit_curve").css( 'width', $("#total_profit_curve").width() );
-    var total_profit_curve_chart = echarts.init(document.getElementById('total_profit_curve'), 'shine');
+    total_profit_curve_chart = echarts.init(document.getElementById('total_profit_curve'), 'shine');
     $.get('/api/total_profit', { account_id: "{{account.id}}" }).done(function (data) {
-        total_profit_curve_chart.setOption({
-            title: {
-                text: '总利润曲线',
-                subtext: '',
-                textAlign: 'center',
-                left: 'center'
-            },
-            tooltip: {
-                trigger: 'axis'
-            },
-            toolbox: {
-                show: true,
-                feature: {
-                    saveAsImage: {}
-                }
-            },
-            xAxis: {
-                type: 'category',
-                boundaryGap: false,
-                data: data.dates,
-                splitLine: {
-                    show: true,
-                    interval: 'auto'
-                }
-            },
-            yAxis: {
-                type: 'value',
-                min: data.min,
-                max: data.max,
-                axisLabel: {
-                    margin:2,
-                    formatter: '{value}'
-                }
-            },
-            series: [{
-                name: '总利润',
-                type: 'line',
-                smooth: true,
-                data: data.data,
-                animation: false,
-                itemStyle: {
-                    normal: {
-                        lineStyle: {
-                            color: 'rgb(255, 70, 131)'
-                        }
-                    }
-                }
-            }]
-        });
+        total_profit_curve_chart_min = data.min;
+        total_profit_curve_chart_max = data.max;
+        total_profit_curve_chart_dates = data.dates;
+        total_profit_curve_chart_data = data.data;
+        set_chart_option(total_profit_curve_chart, total_profit_curve_chart_title, data.min, data.max, data.dates, total_profit_curve_chart_sub_title, data.data);
     });
 
     $('#account-record-pagination').on('select.uk.pagination', function(e, pageIndex){
@@ -322,6 +250,9 @@ function load_account_records(page) {
                 setInterval("update_today_account_record(getTodayString())", {{ refresh_interval }});
             }
         }
+        // if ($('#2016-11-25-record').length>0) {
+        //     setInterval("update_today_account_record('2016-11-25')", {{ refresh_interval }});
+        // }
     });
 }
 
@@ -349,6 +280,77 @@ function update_today_account_record(date) {
                         '<li>成功率：{{account.success_ratio}}%</li>';
             $('#account_info').html(content);
         {% endif %}
+        total_assets = parseFloat($('#current_total_assets').html());
+        total_assets_curve_chart_data[total_assets_curve_chart_data.length-1] = total_assets;
+        set_chart_option(total_assets_curve_chart, 
+            total_assets_curve_chart_title, 
+            total_assets<total_assets_curve_chart_min ? total_assets : total_assets_curve_chart_min, 
+            total_assets>total_assets_curve_chart_max ? total_assets : total_assets_curve_chart_max,  
+            total_assets_curve_chart_dates, 
+            total_assets_curve_chart_sub_title, 
+            total_assets_curve_chart_data);
+
+        total_profit = parseFloat($('#current_total_profit').html());
+        total_profit_curve_chart_data[total_profit_curve_chart_data.length-1] = total_profit;
+        set_chart_option(total_profit_curve_chart, 
+            total_profit_curve_chart_title, 
+            total_profit<total_profit_curve_chart_min ? total_profit : total_profit_curve_chart_min, 
+            total_profit>total_profit_curve_chart_max ? total_profit : total_profit_curve_chart_max,  
+            total_profit_curve_chart_dates, 
+            total_profit_curve_chart_sub_title, 
+            total_profit_curve_chart_data);
+    });
+}
+
+function set_chart_option(chart, title_text, min, max, x_data, serie_name, y_data) {
+    chart.setOption({
+        title: {
+            text: title_text,
+            subtext: '',
+            textAlign: 'center',
+            left: 'center'
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+        toolbox: {
+            show: true,
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: x_data,
+            splitLine: {
+                show: true,
+                interval: 'auto'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            min: min,
+            max: max,
+            axisLabel: {
+                margin:2,
+                formatter: '{value}'
+            }
+        },
+        series: [{
+            name: serie_name,
+            type: 'line',
+            smooth: true,
+            data: y_data,
+            animation: false,
+            itemStyle: {
+                normal: {
+                    lineStyle: {
+                        color: 'rgb(255, 70, 131)'
+                    }
+                }
+            }
+        }]
     });
 }
 

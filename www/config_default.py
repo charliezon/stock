@@ -45,7 +45,7 @@ configs = {
         'tax_rate': 0.001,
         'account_record_items_on_page': 20,
         'stock_trade_items_on_page': 20,
-        'refresh_interval': 1
+        'refresh_interval': 0.5
     },
 
 }

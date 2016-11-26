@@ -424,6 +424,7 @@ async def get_account_record(request, *, account_id, date, stock_amount):
                 current_price = get_current_price(stock.stock_code, date)
                 if current_price:
                     stock.stock_current_price = current_price
+                    #stock.stock_current_price = int(random.uniform(1, 100)*100)/100
                     await stock.update()
                     price_update = True
                 float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
