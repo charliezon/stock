@@ -653,4 +653,30 @@ function initVM(data, action, vm_element, date_element) {
             <div id="total_profit_curve" style="width: 100%;height:400px;"></div>
         </div>
     </div>
+
+    <div class="uk-overflow-container uk-grid">
+        <div class="uk-width-1-1">
+            <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed uk-text-nowrap">
+                <thead>
+                    <tr>
+                        <th>成交日期</th>
+                        <th>股票</th>
+                        <th>成交价</th>
+                        <th>成交量</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in stock_trades %}
+                    <tr>
+                        <td>{{trade.stock_date}}</td>
+                        <td><span class="uk-badge uk-badge-{% if trade.stock_operation %}success{% else %}danger{% endif %}">{% if trade.stock_operation %}买入{% else %}卖出{% endif %}</span>{{trade.stock_name}}</td>
+                        <td>{{trade.stock_price}}</td>
+                        <td>{{trade.stock_amount}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 {% endblock %}

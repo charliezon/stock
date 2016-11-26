@@ -347,10 +347,14 @@ async def get_account(request, *, id):
         account.success_ratio = 0
     else:
         account.success_ratio = int(account.success_times*10000/(account.success_times + account.fail_times))/100
+
+    stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id], orderBy='stock_date desc')
+
     return {
         '__template__': 'account.html',
         'account': account,
         'accounts': all_accounts,
+        'stock_trades': stock_trades,
         'most_recent_account_record': most_recent_account_record,
         'all_account_records': all_account_records,
         'advices': advices,
