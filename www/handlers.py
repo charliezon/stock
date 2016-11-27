@@ -1156,41 +1156,15 @@ async def do_param_statistical(request, *, date):
 
 @asyncio.coroutine
 async def handle_param_statistical(request, date):
-    if not has_logged_in(request):
-        return web.HTTPFound('/signin')
-    check_admin(request)
+    result = await get_index_info(request, date)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
-    if not date:
-        date = today()
-    shanghai_index = get_shanghai_index_info(date)
-    shanghai_index = round(shanghai_index*100)/100
-    index_list = []
-    daily_params = await DailyParam.findAll('date<=?', [date], orderBy='date desc', limit=4)
-    increase_range = ''
-    if len(daily_params) > 0:
-        if daily_params[0].date == date and len(daily_params) >= 2:
-            increase_range = (shanghai_index-daily_params[1].shanghai_index)/daily_params[1].shanghai_index
-            increase_range = round(increase_range*10000)/10000
-        if daily_params[0].date != date and len(daily_params) >= 1:
-            increase_range = (shanghai_index-daily_params[0].shanghai_index)/daily_params[0].shanghai_index
-            increase_range = round(increase_range*10000)/10000
-        if daily_params[0].date == date and len(daily_params) >= 4:
-            index_list = [shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index, daily_params[3].shanghai_index]
-        if daily_params[0].date != date and len(daily_params) >= 3:
-            index_list = [shanghai_index, daily_params[0].shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index]
-    three_days_average_shanghai_increase = ''
-    if len(index_list) == 4:
-        sum = 0
-        for i in range(0, 3):
-            sum = sum + (index_list[i]-index_list[i+1])/index_list[i+1]
-        three_days_average_shanghai_increase = round(sum/3*10000)/10000
     return {
         '__template__': 'param_statistical.html',
         'date': date,
         'accounts': all_accounts,
-        'shanghai_index': shanghai_index,
-        'increase_range': increase_range,
-        'three_days_average_shanghai_increase': three_days_average_shanghai_increase,
+        'shanghai_index': result['shanghai_index'],
+        'increase_range': result['increase_range'],
+        'three_days_average_shanghai_increase': result['three_days_average_shanghai_increase'],
         'action': '/api/param_statistical'
     }
 
@@ -1364,6 +1338,7 @@ async def do_params(request):
 @get('/params/{page}')
 async def get_params(request, *, page):
     must_log_in(request)
+    check_admin(request)
     try:
         page = int(page)
     except ValueError as e:
@@ -1387,3 +1362,41 @@ async def get_params(request, *, page):
         '__template__': 'param_records.html',
         'dps': dps
     }
+
+@asyncio.coroutine
+@get('/api/index_update')
+async def api_index_update(request, *, date):
+    result = await get_index_info(request, date)
+    return result
+
+@asyncio.coroutine
+async def get_index_info(request, date):
+    must_log_in(request)
+    check_admin(request)
+    if not date:
+        date = today()
+    shanghai_index = get_shanghai_index_info(date)
+    if not shanghai_index:
+        raise APIPermissionError()
+    shanghai_index = round(shanghai_index*100)/100
+    index_list = []
+    daily_params = await DailyParam.findAll('date<=?', [date], orderBy='date desc', limit=4)
+    increase_range = ''
+    if len(daily_params) > 0:
+        if daily_params[0].date == date and len(daily_params) >= 2:
+            increase_range = (shanghai_index-daily_params[1].shanghai_index)/daily_params[1].shanghai_index
+            increase_range = round(increase_range*10000)/10000
+        if daily_params[0].date != date and len(daily_params) >= 1:
+            increase_range = (shanghai_index-daily_params[0].shanghai_index)/daily_params[0].shanghai_index
+            increase_range = round(increase_range*10000)/10000
+        if daily_params[0].date == date and len(daily_params) >= 4:
+            index_list = [shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index, daily_params[3].shanghai_index]
+        if daily_params[0].date != date and len(daily_params) >= 3:
+            index_list = [shanghai_index, daily_params[0].shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index]
+    three_days_average_shanghai_increase = ''
+    if len(index_list) == 4:
+        sum = 0
+        for i in range(0, 3):
+            sum = sum + (index_list[i]-index_list[i+1])/index_list[i+1]
+        three_days_average_shanghai_increase = round(sum/3*10000)/10000
+    return dict(shanghai_index=shanghai_index, increase_range=increase_range, three_days_average_shanghai_increase=three_days_average_shanghai_increase)
