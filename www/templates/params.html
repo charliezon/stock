@@ -1,0 +1,45 @@
+{% extends '__base__.html' %}
+
+{% block title %}参数统计{% endblock %}
+
+{% block beforehead %}
+
+<script src="/static/js/echarts/echarts.min.js"></script>
+<script src="/static/js/echarts/theme/shine.js"></script>
+
+<script>
+
+$(document).ready(function(){
+
+    $('#param-pagination').on('select.uk.pagination', function(e, pageIndex){
+        load_params(pageIndex+1);
+    });
+    load_params(1);
+});
+
+
+function load_params(page) {
+    $.get('/params/'+page).done(function (data) {
+        $('#params_table').html(data);
+    });
+}
+</script>
+
+{% endblock %}
+
+{% block content %}
+
+    <a class="uk-button uk-button-primary" href="/param_statistical">统计参数</a>
+    <a class="uk-button uk-button-success" href="/">返回首页</a>
+
+    {% if params_amount>0 %}
+        <div class="uk-overflow-container uk-grid">
+            <div id="params_table" class="uk-width-1-1">
+            </div>
+        </div>
+        {% if params_amount>param_items_on_page %}
+            <ul id="param-pagination" class="uk-pagination" data-uk-pagination="{items:{{params_amount}}, itemsOnPage:{{param_items_on_page}}, currentPage:0}"></ul>
+        {% endif %}
+    {% endif %}
+
+{% endblock %}

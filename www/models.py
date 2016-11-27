@@ -30,12 +30,6 @@ class User(Model):
     image = StringField(ddl='varchar(500)')
     created_at = FloatField(default=time.time)
 
-class MarketState(Model):
-    __table__ = 'market_state'
-
-    date = StringField(primary_key=True, default=today, ddl='varchar(50)')
-    market_state  = IntegerField()
-
 class Account(Model):
     __table__ = 'accounts'
 
@@ -102,3 +96,38 @@ class AccountAssetChange(Model):
     security_or_bank = BooleanField()
     date = StringField(default=today, ddl='varchar(50)')
     created_at = FloatField(default=time.time)
+
+class DailyParam(Model):
+    __table__ = 'daily_params'
+
+    date = StringField(primary_key=True, default=today, ddl='varchar(50)')
+    shanghai_index = FloatField() # 沪指指数
+    stock_market_status = IntegerField()  # 0: 熊市, 1: 小牛市, 2: 大牛市
+    twenty_days_line = BooleanField() # False: 沪指位于20日线以下, True: 沪指位于20日线以上
+    increase_range = FloatField() #沪指涨幅
+    three_days_average_shanghai_increase = FloatField() #沪指近3天平均涨幅
+    shanghai_break_twenty_days_line = BooleanField() # False: 沪指非第一天跌破20日线, True: 沪指第一天跌破20日线
+    shanghai_break_twenty_days_line_for_two_days = BooleanField() # False: 沪指非连续两天跌破20日线, True: 沪指连续两天跌破20日线（未连续3天）
+    shenzhen_break_twenty_days_line = BooleanField() # False: 深指非第一天跌破20日线, True: 深指第一天跌破20日线
+    shenzhen_break_twenty_days_line_for_two_days = BooleanField() # False: 深指非连续两天跌破20日线, True: 深指连续两天跌破20日线（未连续3天）
+    all_stock_amount = IntegerField()  # 沪深A股+创业板总股票数
+    buy_stock_amount = IntegerField()  # 沪深A股+创业板发出买入信号的股票数
+    buy_stock_ratio = FloatField() # 发出买入信号的股票比例
+    pursuit_stock_amount =  IntegerField()  # 沪深A股+创业板发出追涨信号的股票数
+    pursuit_stock_ratio = FloatField() # 发出追涨信号的股票比例
+    iron_stock_amount =  IntegerField()  # 沪深A股+创业板发出买入或追涨信号的普钢股票数
+    bank_stock_amount =  IntegerField()  # 沪深A股+创业板发出买入或追涨信号的银行股票数
+    strong_pursuit_stock_amount =  IntegerField()  # 沪深A股+创业板发出强烈追涨信号的股票数
+    strong_pursuit_stock_ratio =  FloatField() # 发出强烈追涨信号的股票比例
+    pursuit_kdj_die_stock_amount =  IntegerField()  # 沪深A股+创业板发出追涨信号但KDJ死叉的股票数
+    pursuit_kdj_die_stock_ratio = FloatField() # 发出追涨信号但KDJ死叉的股票占总的追涨股票的比例
+    run_stock_amount =  IntegerField()  # 沪深A股+创业板发出逃顶信号的股票数
+    run_stock_ratio = FloatField() # 发出逃顶信号的股票比例
+    big_fall_after_multi_bank_iron = BooleanField() # 当有多只普钢或银行股发出追涨信号后，是否大跌：False 否，True 是
+    four_days_pursuit_ratio_decrease = BooleanField() # 近四日追涨比例突然变小：False 否，True 是
+    too_big_increase = BooleanField() # True：追涨比例大于3%   False：others
+    futures = StringField(ddl='varchar(50)') # 期指交割日，格式：2016-11-18,2016-12-16 （以英文逗号分隔）
+    method_1 = StringField(ddl='varchar(50)') # 方式1选出的股票名称，不能是3天内刚复牌的股票
+    method_2 = StringField(ddl='varchar(50)') # 方式2选出的股票名称，不能是3天内刚复牌的股票
+    created_at = FloatField(default=time.time)
+

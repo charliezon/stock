@@ -24,7 +24,7 @@
             {% for account_record in account_records %}
                 <tr id="{{account_record.date}}-record">
                     <td>{{account_record.date}}</td>
-                    <td>牛</td>
+                    <td>{{account_record.stock_market_status}}</td>
                     <td>{{account_record.principle}}</td>
                     <td>{{account_record.total_profit}}</td>
                     <td>{{account_record.total_assets}}</td>

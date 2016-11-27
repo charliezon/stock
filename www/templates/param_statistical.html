@@ -14,6 +14,7 @@ function initVM(data) {
         data: data,
         methods: {
             submit: function (event) {
+                this.$data.date = $('#date').val();
                 event.preventDefault();
                 var $form = $('#vm').find('form');
                 $form.postJSON(action, this.$data, function (err, r) {
@@ -21,7 +22,7 @@ function initVM(data) {
                         $form.showFormError(err);
                     }
                     else {
-                        return location.assign('/account/' + r.id);
+                        return location.assign('/param_statistical');
                     }
                 });
             }
@@ -33,19 +34,21 @@ function initVM(data) {
 $(function () {
     $('#loading').hide();
     initVM({
-        date: getTodayString(),
-        shanghai_index: '',
-        three_days_average_shanghai_increase: '',
+        date: '{{date}}',
+        shanghai_index: '{{shanghai_index}}',
+        increase_range: '{{increase_range}}',
+        three_days_average_shanghai_increase: '{{three_days_average_shanghai_increase}}',
         all_stock_amount: '',
         buy_stock_amount: '',
         pursuit_stock_amount: '',
         iron_stock_amount: '',
         bank_stock_amount: '',
         strong_pursuit_stock_amount: '',
+        pursuit_kdj_die_stock_amount: '',
         run_stock_amount: '',
         futures: '',
         method_1: '',
-        method_1: ''
+        method_2: ''
 
     });
 });
@@ -80,16 +83,22 @@ $(function () {
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指牛熊</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" id="bear_market" name="stock_market_status"> 熊市</label>
-                    <label><input type="radio" id="small_bull_market" name="stock_market_status"> 小牛市</label>
-                    <label><input type="radio" id="big_bull_market" name="stock_market_status"> 大牛市</label>
+                    <label><input type="radio" v-model="stock_market_status" id="bear_market" name="stock_market_status" value="0" checked="true"> 熊市</label>
+                    <label><input type="radio" v-model="stock_market_status" id="small_bull_market" name="stock_market_status" value="1"> 小牛市</label>
+                    <label><input type="radio" v-model="stock_market_status" id="big_bull_market" name="stock_market_status" value="2"> 大牛市</label>
                 </div>
             </div>
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指位于20日线以上吗？</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" id="higher" name="twenty_days_line"> 是</label>
-                    <label><input type="radio" id="lower" name="twenty_days_line"> 否</label>
+                    <label><input type="radio" v-model="twenty_days_line" id="higher" name="twenty_days_line" value="True" checked="true"> 是</label>
+                    <label><input type="radio" v-model="twenty_days_line" id="lower" name="twenty_days_line" value="False"> 否</label>
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label" for="increase_range"><strong>沪指涨幅</strong></label>
+                <div class="uk-form-controls">
+                    <input id="increase_range" v-model="increase_range" name="increase_range" type="text" class="uk-width-1-1">
                 </div>
             </div>
             <div class="uk-form-row">
@@ -101,29 +110,29 @@ $(function () {
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指第一天跌破20日线吗？</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" id="yes_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line"> 是</label>
-                    <label><input type="radio" id="no_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line"> 否</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line" id="yes_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line" value="True" checked="true"> 是</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line" id="no_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line" value="False"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label"><strong>沪指连续两天跌破20日线吗？</strong><br><small>未连续三天</small></label>
+                <label class="uk-form-label"><strong>沪指连续两天跌破20日线吗？</strong><br><small><span style="color:red">同时未连续三天</span></small></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" id="yes_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days"> 是</label>
-                    <label><input type="radio" id="no_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days"> 否</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="yes_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="True" checked="true"> 是</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="no_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="False"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>深指第一天跌破20日线吗？</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" id="yes_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line"> 是</label>
-                    <label><input type="radio" id="no_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line"> 否</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="yes_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="True" checked="true"> 是</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="no_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="False"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label"><strong>深指连续两天跌破20日线吗？</strong><br><small>未连续三天</small></label>
+                <label class="uk-form-label"><strong>深指连续两天跌破20日线吗？</strong><br><small><span style="color:red">同时未连续三天</span></small></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" id="yes_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days"> 是</label>
-                    <label><input type="radio" id="no_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days"> 否</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_for_two_days" id="yes_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days" value="True" checked="true"> 是</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_for_two_days" id="no_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days" value="False"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
@@ -145,13 +154,13 @@ $(function () {
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label" for="iron_stock_amount"><strong>发出买入或追涨信号的普钢股票数</strong><br><small>沪深A股+创业板</small></label>
+                <label class="uk-form-label" for="iron_stock_amount"><strong>发出买入或追涨信号的<span style="color:red">普钢</span>股票数</strong><br><small>沪深A股+创业板</small></label>
                 <div class="uk-form-controls">
                     <input id="iron_stock_amount" v-model="iron_stock_amount" name="iron_stock_amount" type="text" class="uk-width-1-1">
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label" for="bank_stock_amount"><strong>发出买入或追涨信号的银行股票数</strong><br><small>沪深A股+创业板</small></label>
+                <label class="uk-form-label" for="bank_stock_amount"><strong>发出买入或追涨信号的<span style="color:red">银行</span>股票数</strong><br><small>沪深A股+创业板</small></label>
                 <div class="uk-form-controls">
                     <input id="bank_stock_amount" v-model="bank_stock_amount" name="bank_stock_amount" type="text" class="uk-width-1-1">
                 </div>
@@ -175,26 +184,26 @@ $(function () {
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label" for="futures"><strong>期指交割日</strong><br></label>
+                <label class="uk-form-label" for="futures"><strong>下几个期指交割日</strong><br><small>格式：2016-11-18,2016-12-16 （以英文逗号分隔）</small></label>
                 <div class="uk-form-controls">
                     <input id="futures" v-model="futures" name="futures" type="text" class="uk-width-1-1">
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label" for="method_1"><strong>方式1选出的股票</strong><br></label>
+                <label class="uk-form-label" for="method_1"><strong>方式1选出的股票名称</strong><br><small>换手率最高的一支<br><span style="color:red">不能是3天内刚复牌的股票</span></small></label>
                 <div class="uk-form-controls">
                     <input id="method_1" v-model="method_1" name="method_1" type="text" class="uk-width-1-1">
                 </div>
             </div>
             <div class="uk-form-row">
-                <label class="uk-form-label" for="method_2"><strong>方式2选出的股票</strong><br></label>
+                <label class="uk-form-label" for="method_2"><strong>方式2选出的股票名称</strong><br><small>换手率最高的一支<br><span style="color:red">不能是3天内刚复牌的股票</span></small></label>
                 <div class="uk-form-controls">
                     <input id="method_2" v-model="method_2" name="method_2" type="text" class="uk-width-1-1">
                 </div>
             </div>
             <div class="uk-form-row">
                 <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-save"></i> 保存</button>
-                <a href="/" class="uk-button"><i class="uk-icon-times"></i> 取消</a>
+                <a href="/params" class="uk-button"><i class="uk-icon-times"></i> 取消</a>
             </div>
         </form>
     </div>

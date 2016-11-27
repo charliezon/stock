@@ -12,9 +12,9 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, next_id, today, convert_date
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date
 from config import configs
-from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code
+from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -392,7 +392,15 @@ async def get_account_records(request, *, account_id, page):
         for account_record in account_records:
             for x in range(max_amount-len(account_record.stock_hold_records)):
                 account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
-
+            dp = await DailyParam.find(account_record.date)
+            account_record.stock_market_status = '-'
+            if dp:
+                if dp.stock_market_status == 0:
+                    account_record.stock_market_status = '熊市'
+                elif dp.stock_market_status == 1:
+                    account_record.stock_market_status = '小牛市'
+                else:
+                    account_record.stock_market_status = '大牛市'
     return {
         '__template__': 'account_records.html',
         'account_records': account_records
@@ -441,6 +449,15 @@ async def get_account_record(request, *, account_id, date, stock_amount):
             account_record.stock_hold_records = []
         for x in range(stock_amount-len(account_record.stock_hold_records)):
             account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+        dp = await DailyParam.find(account_record.date)
+        account_record.stock_market_status = '-'
+        if dp:
+            if dp.stock_market_status == 0:
+                account_record.stock_market_status = '熊市'
+            elif dp.stock_market_status == 1:
+                account_record.stock_market_status = '小牛市'
+            else:
+                account_record.stock_market_status = '大牛市'
     else:
         raise APIPermissionError()
     return {
@@ -1124,14 +1141,249 @@ async def api_up_to_date(request, *, date, account_id):
 
 @asyncio.coroutine
 @get('/param_statistical')
-async def do_param_statistical(request):
+async def do_param_statistica_1(request):
+    return await handle_param_statistical(request, today())
+
+@asyncio.coroutine
+@get('/param_statistical/')
+async def do_param_statistical_2(request):
+    return await handle_param_statistical(request, today())
+
+@asyncio.coroutine
+@get('/param_statistical/{date}')
+async def do_param_statistical(request, *, date):
+    return await handle_param_statistical(request, date)
+
+@asyncio.coroutine
+async def handle_param_statistical(request, date):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
     check_admin(request)
-
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    if not date:
+        date = today()
+    shanghai_index = get_shanghai_index_info(date)
+    shanghai_index = round(shanghai_index*100)/100
+    index_list = []
+    daily_params = await DailyParam.findAll('date<=?', [date], orderBy='date desc', limit=4)
+    increase_range = ''
+    if len(daily_params) > 0:
+        if daily_params[0].date == date and len(daily_params) >= 2:
+            increase_range = (shanghai_index-daily_params[1].shanghai_index)/daily_params[1].shanghai_index
+            increase_range = round(increase_range*10000)/10000
+        if daily_params[0].date != date and len(daily_params) >= 1:
+            increase_range = (shanghai_index-daily_params[0].shanghai_index)/daily_params[0].shanghai_index
+            increase_range = round(increase_range*10000)/10000
+        if daily_params[0].date == date and len(daily_params) >= 4:
+            index_list = [shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index, daily_params[3].shanghai_index]
+        if daily_params[0].date != date and len(daily_params) >= 3:
+            index_list = [shanghai_index, daily_params[0].shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index]
+    three_days_average_shanghai_increase = ''
+    if len(index_list) == 4:
+        sum = 0
+        for i in range(0, 3):
+            sum = sum + (index_list[i]-index_list[i+1])/index_list[i+1]
+        three_days_average_shanghai_increase = round(sum/3*10000)/10000
     return {
         '__template__': 'param_statistical.html',
+        'date': date,
         'accounts': all_accounts,
-        'action': ''
+        'shanghai_index': shanghai_index,
+        'increase_range': increase_range,
+        'three_days_average_shanghai_increase': three_days_average_shanghai_increase,
+        'action': '/api/param_statistical'
+    }
+
+@asyncio.coroutine
+@post('/api/param_statistical')
+async def api_param_statistical(request, *, date, shanghai_index, stock_market_status, twenty_days_line, increase_range, three_days_average_shanghai_increase, 
+                                shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line,
+                                shenzhen_break_twenty_days_line_for_two_days, all_stock_amount, buy_stock_amount, pursuit_stock_amount,
+                                iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount,
+                                futures, method_1, method_2):
+    must_log_in(request)
+    check_admin(request)
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    date = date.strip()
+    if date > today():
+        raise APIValueError('date', '日期不能晚于今天')
+    dps = await DailyParam.findAll('date=?', [date])
+    if len(dps)>0:
+        raise APIValueError('date', '本日记录已存在')
+    logging.info('---------------'+str(date))
+    try:
+        shanghai_index = float(shanghai_index)
+    except ValueError as e:
+        raise APIValueError('shanghai_index', '沪指指数填写不正确')
+    if shanghai_index <= 0:
+        raise APIValueError('shanghai_index', '沪指指数必须大于0')
+    logging.info('---------------'+str(shanghai_index))
+    logging.info('---------------'+str(stock_market_status))
+    logging.info('---------------20 days line '+str(twenty_days_line))
+    try:
+        three_days_average_shanghai_increase = float(three_days_average_shanghai_increase)
+    except ValueError as e:
+        raise APIValueError('three_days_average_shanghai_increase', '沪指三天平均涨幅填写不正确')
+    logging.info('---------------'+str(three_days_average_shanghai_increase))
+    try:
+        increase_range = float(increase_range)
+    except ValueError as e:
+        raise APIValueError('increase_range', '沪指涨幅填写不正确')
+    logging.info('---------------'+str(increase_range))
+    logging.info('---------------shanghai_break_twenty_days_line  '+str(shanghai_break_twenty_days_line))
+    logging.info('---------------shanghai_break_twenty_days_line_for_two_days  '+str(shanghai_break_twenty_days_line_for_two_days))
+    logging.info('---------------shenzhen_break_twenty_days_line  '+str(shenzhen_break_twenty_days_line))
+    logging.info('---------------shenzhen_break_twenty_days_line_for_two_days  '+str(shenzhen_break_twenty_days_line_for_two_days))
+    try:
+        all_stock_amount = int(all_stock_amount)
+    except ValueError as e:
+        raise APIValueError('all_stock_amount', '总股票数填写不正确')
+    if all_stock_amount<=0:
+        raise APIValueError('all_stock_amount', '总股票数填写不正确')
+    logging.info('---------------all_stock_amount: '+str(all_stock_amount))
+    try:
+        buy_stock_amount = int(buy_stock_amount)
+    except ValueError as e:
+        raise APIValueError('buy_stock_amount', '发出买入信号的股票数填写不正确')
+    if buy_stock_amount<0:
+        raise APIValueError('buy_stock_amount', '发出买入信号的股票数填写不正确')
+    logging.info('---------------buy_stock_amount: '+str(buy_stock_amount))
+    try:
+        pursuit_stock_amount = int(pursuit_stock_amount)
+    except ValueError as e:
+        raise APIValueError('pursuit_stock_amount', '发出追涨信号的股票数填写不正确')
+    if pursuit_stock_amount<0:
+        raise APIValueError('pursuit_stock_amount', '发出追涨信号的股票数填写不正确')
+    pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount
+    logging.info('---------------pursuit_stock_amount: '+str(pursuit_stock_amount))
+    try:
+        iron_stock_amount = int(iron_stock_amount)
+    except ValueError as e:
+        raise APIValueError('iron_stock_amount', '发出买入或追涨信号的普钢股票数填写不正确')
+    if iron_stock_amount<0:
+        raise APIValueError('iron_stock_amount', '发出买入或追涨信号的普钢股票数填写不正确')
+    logging.info('---------------iron_stock_amount: '+str(iron_stock_amount))
+    try:
+        bank_stock_amount = int(bank_stock_amount)
+    except ValueError as e:
+        raise APIValueError('bank_stock_amount', '发出买入或追涨信号的银行股票数填写不正确')
+    if bank_stock_amount<0:
+        raise APIValueError('bank_stock_amount', '发出买入或追涨信号的银行股票数填写不正确')
+    logging.info('---------------bank_stock_amount: '+str(bank_stock_amount))
+    try:
+        strong_pursuit_stock_amount = int(strong_pursuit_stock_amount)
+    except ValueError as e:
+        raise APIValueError('strong_pursuit_stock_amount', '发出强烈追涨信号的股票数填写不正确')
+    if strong_pursuit_stock_amount<0:
+        raise APIValueError('strong_pursuit_stock_amount', '发出强烈追涨信号的股票数填写不正确')
+    logging.info('---------------strong_pursuit_stock_amount: '+str(strong_pursuit_stock_amount))
+    try:
+        pursuit_kdj_die_stock_amount = int(pursuit_kdj_die_stock_amount)
+    except ValueError as e:
+        raise APIValueError('pursuit_kdj_die_stock_amount', '发出追涨信号但KDJ死叉的股票数填写不正确')
+    if pursuit_kdj_die_stock_amount<0:
+        raise APIValueError('pursuit_kdj_die_stock_amount', '发出追涨信号但KDJ死叉的股票数填写不正确')
+    logging.info('---------------pursuit_kdj_die_stock_amount: '+str(pursuit_kdj_die_stock_amount))
+    try:
+        run_stock_amount = int(run_stock_amount)
+    except ValueError as e:
+        raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
+    if run_stock_amount<0:
+        raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
+    logging.info('---------------run_stock_amount: '+str(run_stock_amount))
+
+
+    pursuit_kdj_die_stock_ratio = pursuit_kdj_die_stock_amount/pursuit_stock_amount if pursuit_stock_amount!=0 else 0
+
+    big_fall_after_multi_bank_iron = False
+    dps1 = await DailyParam.findAll('iron_stock_amount>? or bank_stock_amount>?', [1, 1], orderBy='date desc', limit=1)
+    if len(dps1)>0:
+        dps2 = await DailyParam.findAll('date>? and increase_range<=?', [dps1[0].date, -0.015])
+        if len(dps2) == 0:
+            big_fall_after_multi_bank_iron = False
+        else:
+            big_fall_after_multi_bank_iron = True
+
+    four_days_pursuit_ratio_decrease = False
+    dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=3)
+    if len(dps3) == 3:
+        if (dps3[2].pursuit_stock_ratio >= 0.032 and dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio < 0.032) or (dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio >= 0.032 and pursuit_stock_ratio<0.032):
+            four_days_pursuit_ratio_decrease = True
+
+    d = DailyParam(date=date,
+                    shanghai_index=shanghai_index,
+                    stock_market_status=int(stock_market_status),
+                    twenty_days_line=True if twenty_days_line=='True' else False,
+                    increase_range=increase_range,
+                    three_days_average_shanghai_increase=three_days_average_shanghai_increase,
+                    shanghai_break_twenty_days_line=True if shanghai_break_twenty_days_line=='True' else False,
+                    shanghai_break_twenty_days_line_for_two_days=True if shanghai_break_twenty_days_line_for_two_days=='True' else False,
+                    shenzhen_break_twenty_days_line=True if shenzhen_break_twenty_days_line=='True' else False,
+                    shenzhen_break_twenty_days_line_for_two_days=True if shenzhen_break_twenty_days_line_for_two_days=='True' else False,
+                    all_stock_amount=all_stock_amount,
+                    buy_stock_amount=buy_stock_amount,
+                    buy_stock_ratio=buy_stock_amount/all_stock_amount,
+                    pursuit_stock_amount=pursuit_stock_amount,
+                    pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount,
+                    iron_stock_amount=iron_stock_amount,
+                    bank_stock_amount=bank_stock_amount,
+                    strong_pursuit_stock_amount=strong_pursuit_stock_amount,
+                    strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount,
+                    pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount,
+                    pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
+                    run_stock_amount=run_stock_amount,
+                    run_stock_ratio=run_stock_amount/all_stock_amount,
+                    big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
+                    four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
+                    too_big_increase=(pursuit_stock_ratio>=0.03),
+                    futures=futures,
+                    method_1=method_1,
+                    method_2=method_2)
+    await d.save()
+    return d
+
+@asyncio.coroutine
+@get('/params')
+async def do_params(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    check_admin(request)
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    dps = await DailyParam.findAll()
+    return {
+        '__template__': 'params.html',
+        'accounts': all_accounts,
+        'params_amount': len(dps),
+        'param_items_on_page': configs.stock.param_items_on_page
+    }
+
+@asyncio.coroutine
+@get('/params/{page}')
+async def get_params(request, *, page):
+    must_log_in(request)
+    try:
+        page = int(page)
+    except ValueError as e:
+        raise APIPermissionError()
+    dps = await DailyParam.findAll(orderBy='date desc', limit=((page-1)*configs.stock.param_items_on_page, configs.stock.param_items_on_page))
+    if len(dps)>0:
+        for dp in dps:
+            if dp.stock_market_status == 0:
+                dp.stock_market_status = '<span style="background-color:red;color:white">熊市</span>'
+            elif dp.stock_market_status == 1:
+                dp.stock_market_status = '<span style="background-color:pink;color:white">小牛市</span>'
+            else:
+                dp.stock_market_status = '<span style="background-color:green;color:white">大牛市</span>'
+            dp.twenty_days_line='<span style="background-color:green;color:white">否</span>' if dp.twenty_days_line else '<span style="background-color:red;color:white">跌破</span>'
+            dp.big_fall_after_multi_bank_iron='<span style="background-color:red;color:white">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span style="background-color:green;color:white">否</span>'
+            dp.four_days_pursuit_ratio_decrease='<span style="background-color:red;color:white">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span style="background-color:green;color:white">否</span>'
+            dp.shanghai_index = round(dp.shanghai_index*100)/100
+            dp.increase_range = str(round(dp.increase_range*10000)/100)+'%'
+            dp.three_days_average_shanghai_increase = str(round(dp.three_days_average_shanghai_increase*10000)/100)+'%'
+    return {
+        '__template__': 'param_records.html',
+        'dps': dps
     }
