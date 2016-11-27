@@ -319,6 +319,37 @@ async def get_account(request, *, id):
         raise APIPermissionError()
     account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
+
+    dp = await DailyParam.findAll(orderBy='date desc', limit=1)
+    if len(dp)>0:
+        dadieweizhidie = False
+        dp1 = await DailyParam.findAll('increase_range<?', [-0.015], orderBy='date desc', limit=1)
+        if len(dp1)>0:
+            dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
+            if len(dp2)==0:
+                dadieweizhidie = True 
+
+        zuidacangwei = 1
+        if dp[0].stock_market_status == 0:
+            zuidacangwei = 0.25
+            if not dp[0].big_fall_after_multi_bank_iron:
+                zuidacangwei = 0.125
+        if dp[0].stock_market_status == 1 or dp[0].stock_market_status == 2:
+            zuidacangwei = 1
+            if not dp[0].big_fall_after_multi_bank_iron:
+                zuidacangwei = 0.5
+            if dadieweizhidie:
+                zuidacangwei = 0.5
+
+        clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+
+        dp3 = await DailyParam.findAll('run_stock_ratio>?', [0.02484], orderBy='date desc', limit=5)
+        dp4 = await DailyParam.findAll('pursuit_kdj_die_stock_ratio>?', [0.5], orderBy='date desc', limit=2)
+        cant_buy = dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or len(dp3)>0 or len(dp4)>0
+        cangwei = 0
+
+        stock_to_buy=''
+
     advices = []
     if len(account_records)>0:
         most_recent_account_record = account_records[0]
@@ -331,6 +362,10 @@ async def get_account(request, *, id):
                 else:
                     d_str = d.strftime("%Y-%m-%d")
                     advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+
+
+
+
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
