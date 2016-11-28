@@ -28,9 +28,9 @@ def round_float(f, pos=2):
     last = D(str(int(D(str(f))*p1)))%D('10')
     p = pow(D('10'), D(str(pos)))
     if last >= 5:
-        return math.ceil(D(str(f))*p)/p
+        return float(math.ceil(D(str(f))*p)/p)
     else:
-        return math.floor(D(str(f))*p)/p
+        return float(math.floor(D(str(f))*p)/p)
 
 
 class User(Model):
