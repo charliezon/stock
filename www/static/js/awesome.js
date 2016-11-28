@@ -185,7 +185,7 @@ function getCurrentTime() {
     var today = new Date(),
         hh = today.getHours(),
         mm = today.getMinutes();
-    return hh + ':' + (mm < 10 ? '0' : '') + mm;
+    return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
 }
 
 
