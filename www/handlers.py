@@ -1192,6 +1192,10 @@ async def do_param_statistical(request, *, date):
 async def handle_param_statistical(request, date):
     result = await get_index_info(request, date)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    dps = await DailyParam.findAll(orderBy='date desc', limit=1)
+    futures = ''
+    if len(dps)>0:
+        futures = dps[0].futures
     return {
         '__template__': 'param_statistical.html',
         'date': date,
@@ -1199,6 +1203,7 @@ async def handle_param_statistical(request, date):
         'shanghai_index': result['shanghai_index'],
         'increase_range': result['increase_range'],
         'three_days_average_shanghai_increase': result['three_days_average_shanghai_increase'],
+        'futures': futures,
         'action': '/api/param_statistical'
     }
 
