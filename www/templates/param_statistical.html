@@ -43,21 +43,27 @@ function initVM(data) {
 $(function () {
     $('#loading').hide();
     initVM({
-        date: '{{date}}',
-        shanghai_index: '{{shanghai_index}}',
-        increase_range: '{{increase_range}}',
-        three_days_average_shanghai_increase: '{{three_days_average_shanghai_increase}}',
-        all_stock_amount: '',
-        buy_stock_amount: '',
-        pursuit_stock_amount: '',
-        iron_stock_amount: '',
-        bank_stock_amount: '',
-        strong_pursuit_stock_amount: '',
-        pursuit_kdj_die_stock_amount: '',
-        run_stock_amount: '',
-        futures: '{{futures}}',
-        method_1: '',
-        method_2: ''
+        date: '{{dp.date}}',
+        shanghai_index: '{{dp.shanghai_index}}',
+        increase_range: '{{dp.increase_range}}',
+        three_days_average_shanghai_increase: '{{dp.three_days_average_shanghai_increase}}',
+        all_stock_amount: '{{dp.all_stock_amount}}',
+        buy_stock_amount: '{{dp.buy_stock_amount}}',
+        pursuit_stock_amount: '{{dp.pursuit_stock_amount}}',
+        iron_stock_amount: '{{dp.iron_stock_amount}}',
+        bank_stock_amount: '{{dp.bank_stock_amount}}',
+        strong_pursuit_stock_amount: '{{dp.strong_pursuit_stock_amount}}',
+        pursuit_kdj_die_stock_amount: '{{dp.pursuit_kdj_die_stock_amount}}',
+        run_stock_amount: '{{dp.run_stock_amount}}',
+        futures: '{{dp.futures}}',
+        method_1: '{{dp.method_1}}',
+        method_2: '{{dp.method_2}}',
+        stock_market_status: {{dp.stock_market_status}},
+        twenty_days_line: {{dp.twenty_days_line}},
+        shanghai_break_twenty_days_line: {{dp.shanghai_break_twenty_days_line}},
+        shanghai_break_twenty_days_line_for_two_days: {{dp.shanghai_break_twenty_days_line_for_two_days}},
+        shenzhen_break_twenty_days_line: {{dp.shenzhen_break_twenty_days_line}},
+        shenzhen_break_twenty_days_line_for_two_days: {{dp.shenzhen_break_twenty_days_line_for_two_days}},
 
     });
 });
@@ -92,7 +98,7 @@ $(function () {
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指牛熊</strong><br><small><span style="color:red">牛转熊</span> - 牛市中深指或沪指跌破20日均线<br><span style="color:red">熊转牛</span> - 熊市中深指和沪指同时站上5、10、20、60日均线<br><span style="color:red">维持原有状态，直至状态转换</span><br></small></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" v-model="stock_market_status" id="bear_market" name="stock_market_status" value="0" checked="true"> 熊市</label>
+                    <label><input type="radio" v-model="stock_market_status" id="bear_market" name="stock_market_status" value="0"> 熊市</label>
                     <label><input type="radio" v-model="stock_market_status" id="small_bull_market" name="stock_market_status" value="1"> 小牛市</label>
                     <label><input type="radio" v-model="stock_market_status" id="big_bull_market" name="stock_market_status" value="2"> 大牛市</label>
                 </div>
@@ -100,8 +106,8 @@ $(function () {
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指位于20日线以上吗？</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" v-model="twenty_days_line" id="higher" name="twenty_days_line" value="True" checked="true"> 是</label>
-                    <label><input type="radio" v-model="twenty_days_line" id="lower" name="twenty_days_line" value="False"> 否</label>
+                    <label><input type="radio" v-model="twenty_days_line" id="higher" name="twenty_days_line" value="1"> 是</label>
+                    <label><input type="radio" v-model="twenty_days_line" id="lower" name="twenty_days_line" value="0"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
@@ -119,29 +125,29 @@ $(function () {
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指第一天跌破20日线吗？</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" v-model="shanghai_break_twenty_days_line" id="yes_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line" value="True" checked="true"> 是</label>
-                    <label><input type="radio" v-model="shanghai_break_twenty_days_line" id="no_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line" value="False"> 否</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line" id="yes_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line" value="1"> 是</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line" id="no_shanghai_break_twenty_days_line" name="shanghai_break_twenty_days_line" value="0"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指连续两天跌破20日线吗？</strong><br><small><span style="color:red">同时未连续三天</span></small></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="yes_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="True" checked="true"> 是</label>
-                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="no_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="False"> 否</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="yes_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="1"> 是</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="no_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="0"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>深指第一天跌破20日线吗？</strong></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="yes_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="True" checked="true"> 是</label>
-                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="no_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="False"> 否</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="yes_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="1"> 是</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="no_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="0"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">
                 <label class="uk-form-label"><strong>深指连续两天跌破20日线吗？</strong><br><small><span style="color:red">同时未连续三天</span></small></label>
                 <div class="uk-form-controls uk-form-controls-text">
-                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_for_two_days" id="yes_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days" value="True" checked="true"> 是</label>
-                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_for_two_days" id="no_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days" value="False"> 否</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_for_two_days" id="yes_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days" value="1"> 是</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_for_two_days" id="no_shenzhen_break_twenty_days_line_for_two_days" name="shenzhen_break_twenty_days_line_for_two_days" value="0"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">

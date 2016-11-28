@@ -1192,18 +1192,52 @@ async def do_param_statistical(request, *, date):
 async def handle_param_statistical(request, date):
     result = await get_index_info(request, date)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
-    dps = await DailyParam.findAll(orderBy='date desc', limit=1)
-    futures = ''
-    if len(dps)>0:
-        futures = dps[0].futures
+    dp = await DailyParam.find(date)
+    if dp:
+        dp.twenty_days_line = int(dp.twenty_days_line)
+        dp.shanghai_break_twenty_days_line = int(dp.shanghai_break_twenty_days_line)
+        dp.shanghai_break_twenty_days_line_for_two_days = int(dp.shanghai_break_twenty_days_line_for_two_days)
+        dp.shenzhen_break_twenty_days_line = int(dp.shenzhen_break_twenty_days_line)
+        dp.shenzhen_break_twenty_days_line_for_two_days = int(dp.shenzhen_break_twenty_days_line_for_two_days)        
+
+    if not dp:
+        dp = DailyParam()
+        dp.shanghai_index = result['shanghai_index']
+        dp.increase_range = result['increase_range']
+        dp.three_days_average_shanghai_increase = result['three_days_average_shanghai_increase']
+        dp.date = date
+        dp.all_stock_amount = ''
+        dp.buy_stock_amount = ''
+        dp.pursuit_stock_amount = ''
+        dp.iron_stock_amount = ''
+        dp.bank_stock_amount = ''
+        dp.strong_pursuit_stock_amount = ''
+        dp.pursuit_kdj_die_stock_amount = ''
+        dp.run_stock_amount = ''
+        dp.method_1 = ''
+        dp.method_2 = ''
+        dps = await DailyParam.findAll(orderBy='date desc', limit=1)
+        futures = ''
+        if len(dps)>0:
+            dp.futures = dps[0].futures
+            dp.stock_market_status = dps[0].stock_market_status
+            dp.twenty_days_line = int(dps[0].twenty_days_line)
+            dp.shanghai_break_twenty_days_line = int(dps[0].shanghai_break_twenty_days_line)
+            dp.shanghai_break_twenty_days_line_for_two_days = int(dps[0].shanghai_break_twenty_days_line_for_two_days)
+            dp.shenzhen_break_twenty_days_line = int(dps[0].shenzhen_break_twenty_days_line)
+            dp.shenzhen_break_twenty_days_line_for_two_days = int(dps[0].shenzhen_break_twenty_days_line_for_two_days)
+        else:
+            dp.futures = ''
+            dp.stock_market_status = 0
+            dp.twenty_days_line = 0
+            dp.shanghai_break_twenty_days_line = 0
+            dp.shanghai_break_twenty_days_line_for_two_days = 0
+            dp.shenzhen_break_twenty_days_line = 0
+            dp.shenzhen_break_twenty_days_line_for_two_days = 0
     return {
         '__template__': 'param_statistical.html',
-        'date': date,
+        'dp': dp,
         'accounts': all_accounts,
-        'shanghai_index': result['shanghai_index'],
-        'increase_range': result['increase_range'],
-        'three_days_average_shanghai_increase': result['three_days_average_shanghai_increase'],
-        'futures': futures,
         'action': '/api/param_statistical'
     }
 
@@ -1223,9 +1257,6 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     date = date.strip()
     if date > today():
         raise APIValueError('date', '日期不能晚于今天')
-    dps = await DailyParam.findAll('date=?', [date])
-    if len(dps)>0:
-        raise APIValueError('date', '本日记录已存在')
     logging.info('---------------'+str(date))
     try:
         shanghai_index = float(shanghai_index)
@@ -1326,37 +1357,70 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         if (dps3[2].pursuit_stock_ratio >= 0.032 and dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio < 0.032) or (dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio >= 0.032 and pursuit_stock_ratio<0.032):
             four_days_pursuit_ratio_decrease = True
 
-    d = DailyParam(date=date,
-                    shanghai_index=shanghai_index,
-                    stock_market_status=int(stock_market_status),
-                    twenty_days_line=True if twenty_days_line=='True' else False,
-                    increase_range=increase_range,
-                    three_days_average_shanghai_increase=three_days_average_shanghai_increase,
-                    shanghai_break_twenty_days_line=True if shanghai_break_twenty_days_line=='True' else False,
-                    shanghai_break_twenty_days_line_for_two_days=True if shanghai_break_twenty_days_line_for_two_days=='True' else False,
-                    shenzhen_break_twenty_days_line=True if shenzhen_break_twenty_days_line=='True' else False,
-                    shenzhen_break_twenty_days_line_for_two_days=True if shenzhen_break_twenty_days_line_for_two_days=='True' else False,
-                    all_stock_amount=all_stock_amount,
-                    buy_stock_amount=buy_stock_amount,
-                    buy_stock_ratio=buy_stock_amount/all_stock_amount,
-                    pursuit_stock_amount=pursuit_stock_amount,
-                    pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount,
-                    iron_stock_amount=iron_stock_amount,
-                    bank_stock_amount=bank_stock_amount,
-                    strong_pursuit_stock_amount=strong_pursuit_stock_amount,
-                    strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount,
-                    pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount,
-                    pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
-                    run_stock_amount=run_stock_amount,
-                    run_stock_ratio=run_stock_amount/all_stock_amount,
-                    big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
-                    four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
-                    too_big_increase=(pursuit_stock_ratio>=0.03),
-                    futures=futures,
-                    method_1=method_1,
-                    method_2=method_2)
-    await d.save()
-    return d
+    dp = await DailyParam.find(date)
+    if dp:
+        dp.date = date
+        dp.shanghai_index=shanghai_index
+        dp.stock_market_status=int(stock_market_status)
+        dp.twenty_days_line=True if str(twenty_days_line)=='1' else False
+        dp.increase_range=increase_range
+        dp.three_days_average_shanghai_increase=three_days_average_shanghai_increase
+        dp.shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False
+        dp.shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False
+        dp.shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False
+        dp.shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False
+        dp.all_stock_amount=all_stock_amount
+        dp.buy_stock_amount=buy_stock_amount
+        dp.buy_stock_ratio=buy_stock_amount/all_stock_amount
+        dp.pursuit_stock_amount=pursuit_stock_amount
+        dp.pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount
+        dp.iron_stock_amount=iron_stock_amount
+        dp.bank_stock_amount=bank_stock_amount
+        dp.strong_pursuit_stock_amount=strong_pursuit_stock_amount
+        dp.strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount
+        dp.pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount
+        dp.pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio
+        dp.run_stock_amount=run_stock_amount
+        dp.run_stock_ratio=run_stock_amount/all_stock_amount
+        dp.big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron
+        dp.four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease
+        dp.too_big_increase=(pursuit_stock_ratio>=0.03)
+        dp.futures=futures
+        dp.method_1=method_1
+        dp.method_2=method_2
+        await dp.update()
+    else:
+        dp = DailyParam(date=date,
+                        shanghai_index=shanghai_index,
+                        stock_market_status=int(stock_market_status),
+                        twenty_days_line=True if str(twenty_days_line)=='1' else False,
+                        increase_range=increase_range,
+                        three_days_average_shanghai_increase=three_days_average_shanghai_increase,
+                        shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False,
+                        shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False,
+                        shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False,
+                        shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False,
+                        all_stock_amount=all_stock_amount,
+                        buy_stock_amount=buy_stock_amount,
+                        buy_stock_ratio=buy_stock_amount/all_stock_amount,
+                        pursuit_stock_amount=pursuit_stock_amount,
+                        pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount,
+                        iron_stock_amount=iron_stock_amount,
+                        bank_stock_amount=bank_stock_amount,
+                        strong_pursuit_stock_amount=strong_pursuit_stock_amount,
+                        strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount,
+                        pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount,
+                        pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
+                        run_stock_amount=run_stock_amount,
+                        run_stock_ratio=run_stock_amount/all_stock_amount,
+                        big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
+                        four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
+                        too_big_increase=(pursuit_stock_ratio>=0.03),
+                        futures=futures,
+                        method_1=method_1,
+                        method_2=method_2)
+        await dp.save()
+    return dp
 
 @asyncio.coroutine
 @get('/params')
