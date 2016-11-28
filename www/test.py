@@ -18,8 +18,19 @@
 
 import decimal
 from decimal import Decimal
+
+from models import round_float
 context=decimal.getcontext() # 获取decimal现在的上下文
 context.rounding = decimal.ROUND_05UP
 
-print(round(Decimal(2.55), 1)) # 2.6
-print(format(Decimal(2.55), '.1f')) #'2.6'
+# print(round(Decimal(2.55), 1)) # 2.6
+# print(format(Decimal(2.55), '.1f')) #'2.6'
+# print(round(Decimal(3276.9996), 0))
+print(round_float(2.55, 1))
+print(round_float(2.55))
+print(round_float(3276.234, 2))
+print(round_float(3276.234, 1))
+print(round_float(3276.9996, 1))
+print(round_float(3276.9996, 2))
+print(round_float(3276.9996, 3))
+print(round_float(3276.9996, 4))

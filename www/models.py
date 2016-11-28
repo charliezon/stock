@@ -6,13 +6,13 @@
 
 __author__ = 'Chaoliang Zhong'
 
-import time, uuid, datetime, decimal
+import time, uuid, datetime, math
 
 from orm import Model, StringField, BooleanField, FloatField, IntegerField
-from decimal import Decimal
 
-context=decimal.getcontext()
-context.rounding = decimal.ROUND_05UP
+from decimal import Decimal as D
+
+
 
 def next_id():
     return '%015d%s000' % (int(time.time() * 1000), uuid.uuid4().hex)
@@ -24,7 +24,13 @@ def convert_date(date):
     return datetime.datetime.strptime(date,'%Y-%m-%d')
 
 def round_float(f, pos=2):
-    return float(round(Decimal(f), pos))
+    p1 = pow(D('10'), D(str(pos+1)))
+    last = D(str(int(D(str(f))*p1)))%D('10')
+    p = pow(D('10'), D(str(pos)))
+    if last >= 5:
+        return math.ceil(D(str(f))*p)/p
+    else:
+        return math.floor(D(str(f))*p)/p
 
 
 class User(Model):
