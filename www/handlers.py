@@ -12,13 +12,12 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
-
 
 def user2cookie(user, max_age):
     '''
@@ -257,10 +256,10 @@ async def find_account_record(account_id, date):
                     float_profit_lost = float_profit_lost + (new_stock.stock_current_price-new_stock.stock_buy_price)*new_stock.stock_amount - compute_fee(True, account.commission_rate, new_stock.stock_code, new_stock.stock_buy_price, new_stock.stock_amount)
                     await new_stock.save()
                 account_record.total_stock_value = total_stock_value
-                account_record.total_assets = (round((account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)*100))/100
-                account_record.total_profit = (round((account_record.total_assets - account_record.principle)*100))/100
-                account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
-                account_record.float_profit_lost = (round(float_profit_lost*100))/100
+                account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
+                account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
+                account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+                account_record.float_profit_lost = round_float(float_profit_lost)
                 await account_record.update()
         except Error as e:
             raise APIPermissionError()
@@ -280,10 +279,10 @@ async def find_account_record(account_id, date):
                 float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                 await stock.update()
             account_record.total_stock_value = total_stock_value
-            account_record.total_assets = (round((account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)*100))/100
-            account_record.total_profit = (round((account_record.total_assets - account_record.principle)*100))/100
-            account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
-            account_record.float_profit_lost = (round(float_profit_lost*100))/100
+            account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
+            account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
+            account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+            account_record.float_profit_lost = round_float(float_profit_lost)
             await account_record.update()
     return account_record
 
@@ -369,7 +368,7 @@ async def get_account(request, *, id):
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
-        account.success_ratio = round(account.success_times*10000/(account.success_times + account.fail_times))/100
+        account.success_ratio = round_float(account.success_times*100/(account.success_times + account.fail_times))
 
     stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id])
 
@@ -473,11 +472,11 @@ async def get_account_record(request, *, account_id, date, stock_amount):
                 float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                 total_stock_value = total_stock_value + stock.stock_current_price*stock.stock_amount
             if price_update:
-                account_record.float_profit_lost = (round(float_profit_lost*100))/100
-                account_record.total_stock_value = (round(total_stock_value*100))/100
-                account_record.total_assets = (round((account_record.total_stock_value + account_record.security_funding + account_record.bank_funding)*100))/100
-                account_record.total_profit = (round((account_record.total_assets - account_record.principle)*100))/100
-                account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+                account_record.float_profit_lost = round_float(float_profit_lost)
+                account_record.total_stock_value = round_float(total_stock_value)
+                account_record.total_assets = round_float(account_record.total_stock_value + account_record.security_funding + account_record.bank_funding)
+                account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
+                account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
                 rows = await account_record.update()
             account_record.stock_hold_records = stock_hold_records
         else:
@@ -749,15 +748,15 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     if money > account_record.security_funding:
         raise APIValueError('stock_name', '股票买入金额（'+str(money)+'）超过可用银证资金（'+str(account_record.security_funding)+'）')
 
-    account_record.security_funding = (round((account_record.security_funding - money)*100))/100
+    account_record.security_funding = round_float(account_record.security_funding - money)
     current_price = get_current_price(stock_code, date)
-    account_record.total_stock_value = (round((account_record.total_stock_value + stock_amount*current_price)*100))/100
-    account_record.total_assets = (round((account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)*100))/100
+    account_record.total_stock_value = round_float(account_record.total_stock_value + stock_amount*current_price)
+    account_record.total_assets = round_float(account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)
     if account_record.total_assets >0:
-        account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
     else:
         account_record.stock_position = 0
-    account_record.total_profit = (round((account_record.total_assets - account_record.principle)*100))/100
+    account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
 
     sell_price = get_sell_price(stock_code, date)
 
@@ -786,7 +785,7 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     for stock in stocks:
         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
     
-    account_record.float_profit_lost = (round(float_profit_lost*100))/100
+    account_record.float_profit_lost = round_float(float_profit_lost)
 
     await account_record.update()
 
@@ -861,14 +860,14 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
 
     fee = compute_fee(False, accounts[0].commission_rate, stock_code, stock_price, stock_amount)
 
-    account_record.security_funding = (round((account_record.security_funding + stock_price*stock_amount - fee)*100))/100
-    account_record.total_stock_value = (round((account_record.total_stock_value - stock_amount*exist_stocks[0].stock_current_price)*100))/100
-    account_record.total_assets = (round((account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)*100))/100
+    account_record.security_funding = round_float(account_record.security_funding + stock_price*stock_amount - fee)
+    account_record.total_stock_value = round_float(account_record.total_stock_value - stock_amount*exist_stocks[0].stock_current_price)
+    account_record.total_assets = round_float(account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)
     if account_record.total_assets >0:
-        account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
     else:
         account_record.stock_position = 0
-    account_record.total_profit = (round((account_record.total_assets - account_record.principle)*100))/100
+    account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
 
     stock_trade = StockTradeRecord(
         account_id=accounts[0].id,
@@ -912,7 +911,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     for stock in stocks:
         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
     
-    account_record.float_profit_lost = (round(float_profit_lost*100))/100
+    account_record.float_profit_lost = round_float(float_profit_lost)
 
     await account_record.update()
 
@@ -947,8 +946,8 @@ async def api_add_security_funding(request, *, funding_amount, date, account_id)
     if account_record.bank_funding < funding_amount:
         raise APIValueError('funding_amount', '转账金额不足')
 
-    account_record.bank_funding = (round((account_record.bank_funding - funding_amount)*100))/100
-    account_record.security_funding = (round((account_record.security_funding + funding_amount)*100))/100
+    account_record.bank_funding = round_float(account_record.bank_funding - funding_amount)
+    account_record.security_funding = round_float(account_record.security_funding + funding_amount)
     await account_record.update()
 
     security_funding_change = AccountAssetChange(
@@ -998,8 +997,8 @@ async def api_minus_security_funding(request, *, funding_amount, date, account_i
     if account_record.security_funding < funding_amount:
         raise APIValueError('funding_amount', '转账金额不足')
 
-    account_record.bank_funding = (round((account_record.bank_funding + funding_amount)*100))/100
-    account_record.security_funding = (round((account_record.security_funding - funding_amount)*100))/100
+    account_record.bank_funding = round_float(account_record.bank_funding + funding_amount)
+    account_record.security_funding = round_float(account_record.security_funding - funding_amount)
     await account_record.update()
 
     security_funding_change = AccountAssetChange(
@@ -1045,11 +1044,11 @@ async def api_add_bank_funding(request, *, funding_amount, date, account_id):
 
     account_record = await find_account_record(account_id, date.strip())
 
-    account_record.bank_funding = (round((account_record.bank_funding + funding_amount)*100))/100
-    account_record.principle = (round((account_record.principle + funding_amount)*100))/100
-    account_record.total_assets = (round((account_record.total_assets + funding_amount)*100))/100
+    account_record.bank_funding = round_float(account_record.bank_funding + funding_amount)
+    account_record.principle = round_float(account_record.principle + funding_amount)
+    account_record.total_assets = round_float(account_record.total_assets + funding_amount)
     if account_record.total_assets > 0:
-        account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
     else:
         account_record.stock_position = 0
     await account_record.update()
@@ -1091,11 +1090,11 @@ async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
     if (account_record.bank_funding < funding_amount):
         raise APIValueError('funding_amount', '金额不足')
 
-    account_record.bank_funding = (round((account_record.bank_funding - funding_amount)*100))/100
-    account_record.principle = (round((account_record.principle - funding_amount)*100))/100
-    account_record.total_assets = (round((account_record.total_assets - funding_amount)*100))/100
+    account_record.bank_funding = round_float(account_record.bank_funding - funding_amount)
+    account_record.principle = round_float(account_record.principle - funding_amount)
+    account_record.total_assets = round_float(account_record.total_assets - funding_amount)
     if account_record.total_assets > 0:
-        account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
     else:
         account_record.stock_position = 0
     await account_record.update()
@@ -1135,12 +1134,12 @@ async def api_modify_security_funding(request, *, funding_amount, date, account_
     account_record = await find_account_record(account_id, date.strip())
     account_record.security_funding = funding_amount
 
-    account_record.total_assets = (round((account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)*100))/100
+    account_record.total_assets = round_float(account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)
     if account_record.total_assets >0:
-        account_record.stock_position = (round(account_record.total_stock_value * 10000 / account_record.total_assets))/100
+        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
     else:
         account_record.stock_position = 0
-    account_record.total_profit = (round((account_record.total_assets - account_record.principle)*100))/100
+    account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
 
     await account_record.update()
 
@@ -1390,9 +1389,9 @@ async def get_params(request, *, page):
             dp.twenty_days_line='<span style="background-color:green;color:white">否</span>' if dp.twenty_days_line else '<span style="background-color:red;color:white">跌破</span>'
             dp.big_fall_after_multi_bank_iron='<span style="background-color:red;color:white">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span style="background-color:green;color:white">否</span>'
             dp.four_days_pursuit_ratio_decrease='<span style="background-color:red;color:white">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span style="background-color:green;color:white">否</span>'
-            dp.shanghai_index = round(dp.shanghai_index*100)/100
-            dp.increase_range = str(round(dp.increase_range*10000)/100)+'%'
-            dp.three_days_average_shanghai_increase = str(round(dp.three_days_average_shanghai_increase*10000)/100)+'%'
+            dp.shanghai_index = round_float(dp.shanghai_index)
+            dp.increase_range = str(round_float(dp.increase_range*100))+'%'
+            dp.three_days_average_shanghai_increase = str(round_float(dp.three_days_average_shanghai_increase*100))+'%'
     return {
         '__template__': 'param_records.html',
         'dps': dps
@@ -1413,17 +1412,17 @@ async def get_index_info(request, date):
     shanghai_index = get_shanghai_index_info(date)
     if not shanghai_index:
         raise APIPermissionError()
-    shanghai_index = round(shanghai_index*100)/100
+    shanghai_index = round_float(shanghai_index)
     index_list = []
     daily_params = await DailyParam.findAll('date<=?', [date], orderBy='date desc', limit=4)
     increase_range = ''
     if len(daily_params) > 0:
         if daily_params[0].date == date and len(daily_params) >= 2:
             increase_range = (shanghai_index-daily_params[1].shanghai_index)/daily_params[1].shanghai_index
-            increase_range = round(increase_range*10000)/10000
+            increase_range = round_float(increase_range, 4)
         if daily_params[0].date != date and len(daily_params) >= 1:
             increase_range = (shanghai_index-daily_params[0].shanghai_index)/daily_params[0].shanghai_index
-            increase_range = round(increase_range*10000)/10000
+            increase_range = round_float(increase_range, 4)
         if daily_params[0].date == date and len(daily_params) >= 4:
             index_list = [shanghai_index, daily_params[1].shanghai_index, daily_params[2].shanghai_index, daily_params[3].shanghai_index]
         if daily_params[0].date != date and len(daily_params) >= 3:
@@ -1433,5 +1432,5 @@ async def get_index_info(request, date):
         sum = 0
         for i in range(0, 3):
             sum = sum + (index_list[i]-index_list[i+1])/index_list[i+1]
-        three_days_average_shanghai_increase = round(sum/3*10000)/10000
+        three_days_average_shanghai_increase = round_float(sum/3, 4)
     return dict(shanghai_index=shanghai_index, increase_range=increase_range, three_days_average_shanghai_increase=three_days_average_shanghai_increase)

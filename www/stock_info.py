@@ -8,7 +8,7 @@ import re, logging
 from urllib import request, error
 from urllib.parse import quote
 from config import configs
-from models import today
+from models import today, round_float
 
 def current_shanghai_index_info():
     result = False
@@ -237,7 +237,7 @@ def get_open_price(stock_code, date):
 def get_sell_price(stock_code, date):
     open_price = get_open_price(stock_code, date)
     if open_price:
-        return (int(open_price*1.04*100))/100
+        return round_float(open_price*1.04)
     else:
         return 0
 
@@ -265,7 +265,7 @@ def compute_security_fee(stock_price, stock_amount, commission_rate):
 
 def compute_fee(buy, commission_rate, stock_code, stock_price, stock_amount):
     fee = compute_stock_tax(buy, stock_price, stock_amount) + compute_exchange_fee(stock_code, stock_amount) + compute_security_fee(stock_price, stock_amount, commission_rate)
-    return round(fee, 2)
+    return round_float(fee)
 
 
 print('2017-11-27', get_shanghai_index_info('2017-11-27'))
