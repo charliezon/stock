@@ -1467,12 +1467,6 @@ async def get_params(request, *, page):
     }
 
 @asyncio.coroutine
-@get('/api/index_update')
-async def api_index_update(request, *, date):
-    result = await get_index_info(request, date)
-    return result
-
-@asyncio.coroutine
 async def get_index_info(request, date):
     must_log_in(request)
     check_admin(request)

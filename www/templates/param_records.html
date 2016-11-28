@@ -25,7 +25,7 @@
         <tbody>
             {% for dp in dps %}
                 <tr>
-                    <td>{{dp.date}}</td>
+                    <td>{{dp.date}} <a class="uk-button uk-button-danger" href="/param_statistical/{{dp.date}}">修改</a></td>
                     <td>{{dp.shanghai_index}}</td>
                     <td>{{dp.stock_market_status|safe}}</td>
                     <td>{{dp.twenty_days_line|safe}}</td>

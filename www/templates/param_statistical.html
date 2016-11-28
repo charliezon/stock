@@ -31,12 +31,7 @@ function initVM(data) {
     $('#vm').show();
 
     $('#date').on('hide.uk.datepicker', function(){
-        $.get('/api/index_update', { date: $('#date').val() }).done(function (data) {
-            $('#shanghai_index').val(data.shanghai_index);
-            $('#increase_range').val(data.increase_range);
-            $('#three_days_average_shanghai_increase').val(data.three_days_average_shanghai_increase);
-        });
-
+        location.href = '/param_statistical/'+$('#date').val();
     });
 }
 
