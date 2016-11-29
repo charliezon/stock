@@ -398,10 +398,10 @@ async def get_account(request, *, id):
         if not cant_buy:
             if dp.method_1:
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
-                advices.append('以开盘价买入'+dp.method_1+str(float_round(buy_position))+'仓')
+                advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
             elif dp.method_2:
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
-                advices.append('以开盘价买入'+dp.method_2+str(float_round(buy_position))+'仓')
+                advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
 
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
