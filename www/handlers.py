@@ -327,43 +327,81 @@ async def get_account(request, *, id):
             dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
             if len(dp2)==0:
                 dadieweizhidie = True 
-
-        zuidacangwei = 1
+        # 最大仓位
+        max_position = 0
         if dp[0].stock_market_status == 0:
-            zuidacangwei = 0.25
+            max_position = 0.25
             if not dp[0].big_fall_after_multi_bank_iron:
-                zuidacangwei = 0.125
+                max_position = 0.125
         if dp[0].stock_market_status == 1 or dp[0].stock_market_status == 2:
-            zuidacangwei = 1
-            if not dp[0].big_fall_after_multi_bank_iron:
-                zuidacangwei = 0.5
-            if dadieweizhidie:
-                zuidacangwei = 0.5
-
+            max_position = 1
+            if dadieweizhidie or not dp[0].big_fall_after_multi_bank_iron:
+                max_position = 0.5
+        # 清仓
         clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
 
         dp3 = await DailyParam.findAll('run_stock_ratio>?', [0.02484], orderBy='date desc', limit=5)
-        dp4 = await DailyParam.findAll('pursuit_kdj_die_stock_ratio>?', [0.5], orderBy='date desc', limit=2)
-        cant_buy = dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or len(dp3)>0 or len(dp4)>0
-        cangwei = 0
+        dp4 = await DailyParam.findAll('pursuit_kdj_die_stock_ratio>=?', [0.5], orderBy='date desc', limit=2)
 
-        stock_to_buy=''
+        # 不能买
+        cant_buy = dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or len(dp3)>0 or len(dp4)>0
+        
+        # 方式1买入仓位
+        method1_buy_position = 1/4
+        if dp[0].stock_market_status == 0:
+            if dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+            elif not dp[0].big_fall_after_multi_bank_iron:
+                method1_buy_position = method1_buy_position/2
+        if dp[0].stock_market_status == 1:
+            if dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+        if dp[0].stock_market_status == 2:
+            if dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+        # 方式2买入仓位
+        method2_buy_position = 1/16
+        if dp[0].stock_market_status == 0:
+            if dadieweizhidie:
+                method2_buy_position = 0
+            elif not dp[0].big_fall_after_multi_bank_iron:
+                method2_buy_position = method2_buy_position/2
+        if dp[0].stock_market_status == 1:
+            if dadieweizhidie:
+                method2_buy_position = 0
+        if dp[0].stock_market_status == 2:
+            method2_buy_position = 1/4
+            if dadieweizhidie:
+                method2_buy_position = 0
 
     advices = []
-    if len(account_records)>0:
-        most_recent_account_record = account_records[0]
-        stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
-        if len(stocks) > 0:
-            for stock in stocks:
-                d = convert_date(stock.stock_buy_date) + timedelta(days=31)
-                if d < datetime.datetime.today():
-                    advices.append('收盘前卖出'+stock.stock_name+str(stock.stock_amount)+'股')
-                else:
-                    d_str = d.strftime("%Y-%m-%d")
-                    advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
-
-
-
+    
+    if clear:
+        advices.append('<span style="color:red"><strong>今日务必择机清仓</strong></span>')
+    else:
+        current_position = 0
+        if len(account_records)>0:
+            most_recent_account_record = account_records[0]
+            # 当前仓位
+            current_position = most_recent_account_record.stock_position
+            if current_position >= max_position:
+                cant_buy = True
+            stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
+            if len(stocks) > 0:
+                for stock in stocks:
+                    d = convert_date(stock.stock_buy_date) + timedelta(days=31)
+                    if d < datetime.datetime.today():
+                        advices.append('收盘前卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+                    else:
+                        d_str = d.strftime("%Y-%m-%d")
+                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+        if not cant_buy:
+            if dp.method_1:
+                buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
+                advices.append('以开盘价买入'+dp.method_1+str(float_round(buy_position))+'仓')
+            elif dp.method_2:
+                buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
+                advices.append('以开盘价买入'+dp.method_2+str(float_round(buy_position))+'仓')
 
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0

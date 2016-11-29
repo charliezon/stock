@@ -390,7 +390,7 @@ function set_chart_option(chart, title_text, min, max, x_data, serie_name, y_dat
                 <ul>
                     {% if advices %}
                         {% for advice in advices %}
-                            <li>{{ advice }}</li>
+                            <li>{{ advice|safe }}</li>
                         {% endfor %}
                     {% endif %}
                 </ul>
