@@ -327,6 +327,7 @@ async def get_account(request, *, id):
             dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
             if len(dp2)==0:
                 dadieweizhidie = True 
+        logging.info('大跌未止跌：'+str(dadieweizhidie))
         # 最大仓位
         max_position = 0
         if dp[0].stock_market_status == 0:
@@ -337,15 +338,35 @@ async def get_account(request, *, id):
             max_position = 1
             if dadieweizhidie or not dp[0].big_fall_after_multi_bank_iron:
                 max_position = 0.5
+        logging.info('最大仓位：'+str(max_position))
         # 清仓
         clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        logging.info('清仓：'+str(clear))
 
-        dp3 = await DailyParam.findAll('run_stock_ratio>?', [0.02484], orderBy='date desc', limit=5)
-        dp4 = await DailyParam.findAll('pursuit_kdj_die_stock_ratio>=?', [0.5], orderBy='date desc', limit=2)
+        dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
+        flag1 = False
+        for d in dp3:
+            if d.run_stock_ratio > 0.02484:
+                flag1 = True
+                break
+        dp4 = await DailyParam.findAll(orderBy='date desc', limit=2)
+        flag2 = False
+        for d in dp4:
+            if d.pursuit_kdj_die_stock_ratio>=0.5:
+                flag2 = True
+                break
 
         # 不能买
-        cant_buy = dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or len(dp3)>0 or len(dp4)>0
-        
+        cant_buy = dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
+        logging.info(str(dp[0].shanghai_break_twenty_days_line_for_two_days))
+        logging.info(str(dp[0].shenzhen_break_twenty_days_line_for_two_days))
+        logging.info(str(dadieweizhidie))
+        logging.info(str(dp[0].pursuit_stock_ratio))
+        logging.info(str(dp[0].strong_pursuit_stock_ratio))
+        logging.info(str(flag1))
+        logging.info(str(flag2))
+        logging.info('不能买：'+str(cant_buy))
+
         # 方式1买入仓位
         method1_buy_position = 1/4
         if dp[0].stock_market_status == 0:
@@ -359,6 +380,7 @@ async def get_account(request, *, id):
         if dp[0].stock_market_status == 2:
             if dadieweizhidie:
                 method1_buy_position = method1_buy_position/4
+        logging.info('方式1买入仓位：'+str(method1_buy_position))
         # 方式2买入仓位
         method2_buy_position = 1/16
         if dp[0].stock_market_status == 0:
@@ -373,6 +395,7 @@ async def get_account(request, *, id):
             method2_buy_position = 1/4
             if dadieweizhidie:
                 method2_buy_position = 0
+        logging.info('方式2买入仓位：'+str(method2_buy_position))
 
     advices = []
     
@@ -383,9 +406,12 @@ async def get_account(request, *, id):
         if len(account_records)>0:
             most_recent_account_record = account_records[0]
             # 当前仓位
-            current_position = most_recent_account_record.stock_position
+            current_position = most_recent_account_record.stock_position / 100
             if current_position >= max_position:
                 cant_buy = True
+                logging.info('current_position：'+str(current_position))
+                logging.info('max_position'+str(max_position))
+                logging.info('不能买：'+str(cant_buy))
             stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
             if len(stocks) > 0:
                 for stock in stocks:
@@ -396,11 +422,11 @@ async def get_account(request, *, id):
                         d_str = d.strftime("%Y-%m-%d")
                         advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
         if not cant_buy:
-            if dp.method_1:
-                stocks = get_stock_via_name(dp.method_1)
+            if dp[0].method_1:
+                stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
                 if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
+                    advices.append('以开盘价买入'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
                 else:
                     stock_code = stocks[0].stock_code
                     price = 0
@@ -409,25 +435,25 @@ async def get_account(request, *, id):
                     else:
                         price = get_current_price(stock_code)
                     if price:
-                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp.method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
-                        advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
-            elif dp.method_2:
-                stocks = get_stock_via_name(dp.method_2)
+                        advices.append('以开盘价买入'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
+            elif dp[0].method_2:
+                stocks = get_stock_via_name(dp[0].method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
                 if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
+                    advices.append('以开盘价买入'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
                 else:
-                    stock_code = stocks[0].stock_code
+                    stock_code = stocks[0]['stock_code']
                     price = 0
                     if most_recent_account_record.date == today():
                         price = find_open_price_with_code(stock_code)
                     else:
                         price = get_current_price(stock_code)
                     if price:
-                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp.method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
-                        advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
+                        advices.append('以开盘价买入'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
 
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
