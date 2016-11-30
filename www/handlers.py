@@ -14,7 +14,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float
 from config import configs
-from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info
+from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -397,11 +397,37 @@ async def get_account(request, *, id):
                         advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
         if not cant_buy:
             if dp.method_1:
+                stocks = get_stock_via_name(dp.method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
-                advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
+                if not stocks or len(stocks)!=1:
+                    advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
+                else:
+                    stock_code = stocks[0].stock_code
+                    price = 0
+                    if most_recent_account_record.date == today():
+                        price = find_open_price_with_code(stock_code)
+                    else:
+                        price = get_current_price(stock_code)
+                    if price:
+                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp.method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                    else:
+                        advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
             elif dp.method_2:
+                stocks = get_stock_via_name(dp.method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
-                advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
+                if not stocks or len(stocks)!=1:
+                    advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
+                else:
+                    stock_code = stocks[0].stock_code
+                    price = 0
+                    if most_recent_account_record.date == today():
+                        price = find_open_price_with_code(stock_code)
+                    else:
+                        price = get_current_price(stock_code)
+                    if price:
+                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp.method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                    else:
+                        advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
 
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
