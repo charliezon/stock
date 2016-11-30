@@ -430,12 +430,14 @@ async def get_account(request, *, id):
                 else:
                     stock_code = stocks[0].stock_code
                     price = 0
-                    if most_recent_account_record.date == today():
+                    if most_recent_account_record.date < today():
                         price = find_open_price_with_code(stock_code)
+                        if not price:
+                            price = get_current_price(stock_code, today())
                     else:
-                        price = get_current_price(stock_code)
+                        price = get_current_price(stock_code, today())
                     if price:
-                        advices.append('以开盘价'+str(round_float(price))+'<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
             elif dp[0].method_2:
@@ -446,12 +448,14 @@ async def get_account(request, *, id):
                 else:
                     stock_code = stocks[0]['stock_code']
                     price = 0
-                    if most_recent_account_record.date == today():
+                    if most_recent_account_record.date < today():
                         price = find_open_price_with_code(stock_code)
+                        if not price:
+                            price = get_current_price(stock_code, today())
                     else:
-                        price = get_current_price(stock_code)
+                        price = get_current_price(stock_code, today())
                     if price:
-                        advices.append('以开盘价'+str(round_float(price))+'<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
 
