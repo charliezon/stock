@@ -417,16 +417,16 @@ async def get_account(request, *, id):
                 for stock in stocks:
                     d = convert_date(stock.stock_buy_date) + timedelta(days=31)
                     if d < datetime.datetime.today():
-                        advices.append('收盘前卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
                     else:
                         d_str = d.strftime("%Y-%m-%d")
-                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
         if not cant_buy:
             if dp[0].method_1:
                 stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
                 if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价买入'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
+                    advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
                 else:
                     stock_code = stocks[0].stock_code
                     price = 0
@@ -435,14 +435,14 @@ async def get_account(request, *, id):
                     else:
                         price = get_current_price(stock_code)
                     if price:
-                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价'+str(round_float(price))+'<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
-                        advices.append('以开盘价买入'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
             elif dp[0].method_2:
                 stocks = get_stock_via_name(dp[0].method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
                 if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价买入'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
+                    advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
                 else:
                     stock_code = stocks[0]['stock_code']
                     price = 0
@@ -451,9 +451,9 @@ async def get_account(request, *, id):
                     else:
                         price = get_current_price(stock_code)
                     if price:
-                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价'+str(round_float(price))+'<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
-                        advices.append('以开盘价买入'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
 
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
