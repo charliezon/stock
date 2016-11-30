@@ -14,3 +14,9 @@ build
 
 # C extensions
 *.so
+
+# directory
+Dockerfiles/*
+
+#SQL
+stock-2016*.sql

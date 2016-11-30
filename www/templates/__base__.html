@@ -13,6 +13,7 @@
     <script src="/static/js/sha1.min.js"></script>
     <script src="/static/js/uikit.min.js"></script>
     <script src="/static/js/components/datepicker.min.js"></script>
+    <script src="/static/js/components/pagination.min.js"></script>
     <script src="/static/js/sticky.min.js"></script>
     <script src="/static/js/vue.min.js"></script>
     <script src="/static/js/awesome.js"></script>
@@ -37,11 +38,11 @@
                     </li>
                     {% endif %}
                     {% if account %}
-                    <li><a href="/"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
+                    <li><a href="/account/edit/{{account.id}}"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
                     {% endif %}
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}
-                        <li><a href="/"><i class="uk-icon-pencil-square"></i> 参数统计</a></li>
+                        <li><a href="/params"><i class="uk-icon-pencil-square"></i> 参数统计</a></li>
                     {% endif %}
                 </ul>
             {% endif %}
@@ -80,12 +81,8 @@
     <div class="uk-margin-large-top" style="background-color:#eee; border-top:1px solid #ccc;">
         <div class="uk-container uk-container-center uk-text-center">
             <div class="uk-panel uk-margin-top uk-margin-bottom">
-                <p>
-                    <a target="_blank" href="https://github.com/charliezon" class="uk-icon-button uk-icon-github"></a>
-                </p>
                 <p>Powered by <a href="http://stock.charliezon.com">Stock Charliezon</a>. Copyright &copy; 2016. </p>
                 <p><a href="http://www.charliezon.com/" target="_blank">www.charliezon.com</a>. All rights reserved.</p>
-                <a target="_blank" href="http://www.w3.org/TR/html5/"><i class="uk-icon-html5" style="font-size:64px; color: #444;"></i></a>
             </div>
 
         </div>

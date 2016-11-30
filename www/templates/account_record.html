@@ -1,0 +1,16 @@
+<td>{{account_record.date}}</td>
+<td>{{account_record.stock_market_status}}</td>
+<td>{{account_record.principle}}</td>
+<td id="current_total_profit">{{account_record.total_profit}}</td>
+<td id="current_total_assets">{{account_record.total_assets}}</td>
+<td id="current_total_stock_value">{{account_record.total_stock_value}}</td>
+<td>{{account_record.security_funding}}</td>
+<td>{{account_record.bank_funding}}</td>
+<td id="current_float_profit_lost">{{account_record.float_profit_lost}}</td>
+<td id="current_stock_position">{{account_record.stock_position}}%</td>
+{% for stock in account_record.stock_hold_records %}
+    <td>{{stock.stock_name}}</td>
+    <td>{{stock.stock_amount}}</td>
+    <td>{{stock.stock_current_price}}</td>
+    <td>{{stock.stock_sell_price}}</td>
+{% endfor %}

@@ -4,6 +4,9 @@
 
 {% block beforehead %}
 
+<script src="/static/js/echarts/echarts.min.js"></script>
+<script src="/static/js/echarts/theme/shine.js"></script>
+
 <script>
 
 var
@@ -22,7 +25,26 @@ var
     minus_security_funding_action = '{{ minus_security_funding_action }}',
     minus_security_funding_vm,
     modify_security_funding_action = '{{ modify_security_funding_action }}',
-    modify_security_funding_vm;
+    modify_security_funding_vm,
+
+    up_to_date_action = '{{ up_to_date_action }}',
+    up_to_date_vm,
+
+    total_assets_curve_chart, 
+    total_assets_curve_chart_title = '总资产曲线', 
+    total_assets_curve_chart_min,
+    total_assets_curve_chart_max, 
+    total_assets_curve_chart_dates, 
+    total_assets_curve_chart_sub_title = '总资产', 
+    total_assets_curve_chart_data,
+
+    total_profit_curve_chart, 
+    total_profit_curve_chart_title = '总利润曲线', 
+    total_profit_curve_chart_min,
+    total_profit_curve_chart_max, 
+    total_profit_curve_chart_dates, 
+    total_profit_curve_chart_sub_title = '总利润', 
+    total_profit_curve_chart_data;
 
 
 $(document).ready(function(){
@@ -145,6 +167,52 @@ $(document).ready(function(){
             $("#modify_security_funding_date").val(getTodayString());
         });
 
+    up_to_date_vm = initVM({
+        date: getTodayString()
+    },
+    up_to_date_action,
+    '#vm_up_to_date',
+    '#up_to_date_date');
+
+    $("#up_to_date_button").click(
+        function() {
+            up_to_date_vm.date=getTodayString();
+            $("#up_to_date_date").val(getTodayString());
+        });
+
+    $("#total_assets_curve").css( 'width', $("#total_assets_curve").width() );
+    total_assets_curve_chart = echarts.init(document.getElementById('total_assets_curve'), 'shine');
+    $.get('/api/total_assets', { account_id: "{{account.id}}" }).done(function (data) {
+        total_assets_curve_chart_min = data.min;
+        total_assets_curve_chart_max = data.max;
+        total_assets_curve_chart_dates = data.dates;
+        total_assets_curve_chart_data = data.data;
+        set_chart_option(total_assets_curve_chart, total_assets_curve_chart_title, data.min, data.max, data.dates, total_assets_curve_chart_sub_title, data.data);
+    });
+
+
+    $("#total_profit_curve").css( 'width', $("#total_profit_curve").width() );
+    total_profit_curve_chart = echarts.init(document.getElementById('total_profit_curve'), 'shine');
+    $.get('/api/total_profit', { account_id: "{{account.id}}" }).done(function (data) {
+        total_profit_curve_chart_min = data.min;
+        total_profit_curve_chart_max = data.max;
+        total_profit_curve_chart_dates = data.dates;
+        total_profit_curve_chart_data = data.data;
+        set_chart_option(total_profit_curve_chart, total_profit_curve_chart_title, data.min, data.max, data.dates, total_profit_curve_chart_sub_title, data.data);
+    });
+
+    $('#account-record-pagination').on('select.uk.pagination', function(e, pageIndex){
+        load_account_records(pageIndex+1);
+    });
+
+    $('#stock-trade-pagination').on('select.uk.pagination', function(e, pageIndex){
+        load_stock_trades(pageIndex+1);
+    });
+
+    load_account_records(1);
+
+    load_stock_trades(1);
+
 });
 
 
@@ -172,6 +240,119 @@ function initVM(data, action, vm_element, date_element) {
     });
 }
 
+function load_account_records(page) {
+    $.get('/account_records/{{account.id}}/'+page).done(function (data) {
+        $('#account_records_table').html(data);
+        if ($('#'+getTodayString()+'-record').length>0) {
+            update_today_account_record(getTodayString());
+            current_time = getCurrentTime();
+            if (current_time>'09:30' && current_time<'15:00') {
+                setInterval("update_today_account_record(getTodayString())", {{ refresh_interval }});
+            }
+        }
+        // if ($('#2016-11-25-record').length>0) {
+        //     setInterval("update_today_account_record('2016-11-25')", {{ refresh_interval }});
+        // }
+    });
+}
+
+function load_stock_trades(page) {
+    $.get('/stock_trades/{{account.id}}/'+page).done(function (data) {
+        $('#stock_trades_table').html(data);
+    });
+}
+
+function update_today_account_record(date) {
+    stock_amount = ($('#'+date+'-record').find('td').length-10)/4;
+    $.get('/account_record/{{account.id}}/'+date+'/'+stock_amount).done(function (data) {
+        $('#'+date+'-record').html(data);
+        {% if most_recent_account_record and account %}
+            content = '<li>名称：{{account.name}}</li>'+
+                        '<li>佣金率：{{account.commission_rate}}</li>'+
+                        '<li>仓位：'+$('#current_stock_position').html()+'</li>'+
+                        '<li>银证资金：{{most_recent_account_record.security_funding}}</li>'+
+                        '<li>银行资金：{{most_recent_account_record.bank_funding}}</li>'+
+                        '<li>总市值：'+$('#current_total_stock_value').html()+'</li>'+
+                        '<li>总资产：'+$('#current_total_assets').html()+'</li>'+
+                        '<li>浮动盈亏：'+$('#current_float_profit_lost').html()+'</li>'+
+                        '<li>利润：'+$('#current_total_profit').html()+'</li>'+
+                        '<li>本金：{{most_recent_account_record.principle}}</li>'+
+                        '<li>成功率：{{account.success_ratio}}%</li>';
+            $('#account_info').html(content);
+        {% endif %}
+        total_assets = parseFloat($('#current_total_assets').html());
+        total_assets_curve_chart_data[total_assets_curve_chart_data.length-1] = total_assets;
+        set_chart_option(total_assets_curve_chart, 
+            total_assets_curve_chart_title, 
+            total_assets<total_assets_curve_chart_min ? total_assets : total_assets_curve_chart_min, 
+            total_assets>total_assets_curve_chart_max ? total_assets : total_assets_curve_chart_max,  
+            total_assets_curve_chart_dates, 
+            total_assets_curve_chart_sub_title, 
+            total_assets_curve_chart_data);
+
+        total_profit = parseFloat($('#current_total_profit').html());
+        total_profit_curve_chart_data[total_profit_curve_chart_data.length-1] = total_profit;
+        set_chart_option(total_profit_curve_chart, 
+            total_profit_curve_chart_title, 
+            total_profit<total_profit_curve_chart_min ? total_profit : total_profit_curve_chart_min, 
+            total_profit>total_profit_curve_chart_max ? total_profit : total_profit_curve_chart_max,  
+            total_profit_curve_chart_dates, 
+            total_profit_curve_chart_sub_title, 
+            total_profit_curve_chart_data);
+    });
+}
+
+function set_chart_option(chart, title_text, min, max, x_data, serie_name, y_data) {
+    chart.setOption({
+        title: {
+            text: title_text,
+            subtext: '',
+            textAlign: 'center',
+            left: 'center'
+        },
+        tooltip: {
+            trigger: 'axis'
+        },
+        toolbox: {
+            show: true,
+            feature: {
+                saveAsImage: {}
+            }
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: x_data,
+            splitLine: {
+                show: true,
+                interval: 'auto'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            min: min,
+            max: max,
+            axisLabel: {
+                margin:2,
+                formatter: '{value}'
+            }
+        },
+        series: [{
+            name: serie_name,
+            type: 'line',
+            smooth: true,
+            data: y_data,
+            animation: false,
+            itemStyle: {
+                normal: {
+                    lineStyle: {
+                        color: 'rgb(255, 70, 131)'
+                    }
+                }
+            }
+        }]
+    });
+}
 
 
 
@@ -185,11 +366,11 @@ function initVM(data, action, vm_element, date_element) {
         <div class="uk-width-1-2">
             <div class="uk-panel uk-panel-box">
                 <h3 class="uk-panel-title"><strong>账户信息</strong></h3>
-                <ul>
+                <ul id="account_info">
                     {% if most_recent_account_record and account %}
                     <li>名称：{{account.name}}</li>
                     <li>佣金率：{{account.commission_rate}}</li>
-                    <li>仓位：{{most_recent_account_record.stock_position*100}}%</li>
+                    <li>仓位：{{most_recent_account_record.stock_position}}%</li>
                     <li>银证资金：{{most_recent_account_record.security_funding}}</li>
                     <li>银行资金：{{most_recent_account_record.bank_funding}}</li>
                     <li>总市值：{{most_recent_account_record.total_stock_value}}</li>
@@ -197,6 +378,7 @@ function initVM(data, action, vm_element, date_element) {
                     <li>浮动盈亏：{{most_recent_account_record.float_profit_lost}}</li>
                     <li>利润：{{most_recent_account_record.total_profit}}</li>
                     <li>本金：{{most_recent_account_record.principle}}</li>
+                    <li>成功率：{{account.success_ratio}}%</li>
                     {% endif %}
                 </ul>
             </div>
@@ -206,9 +388,11 @@ function initVM(data, action, vm_element, date_element) {
             <div class="uk-panel uk-panel-box">
                 <h3 class="uk-panel-title"><strong>操作建议</strong></h3>
                 <ul>
-                    <li>卖出万科100000股</li>
-                    <li>卖出百度100000股</li>
-                    <li>买入阿里巴巴1000000股</li>
+                    {% if advices %}
+                        {% for advice in advices %}
+                            <li>{{ advice|safe }}</li>
+                        {% endfor %}
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -440,90 +624,56 @@ function initVM(data, action, vm_element, date_element) {
                     </form>
                 </div>
             </div>
+            <button id="up_to_date_button" class="uk-button" data-uk-modal="{target:'#up_to_date'}">UP-TO-DATE</button>
+            <div id="up_to_date" class="uk-modal">
+                <div class="uk-modal-dialog">
+                    <a href="" class="uk-modal-close uk-close"></a>
+                    <h1>UP-TO-DATE</h1>
+                    <form id="vm_up_to_date" v-on="submit: submit" class="uk-form">
+                        <div class="uk-alert uk-alert-danger uk-hidden"></div>
+                        <div class="uk-form-row">
+                            <label class="uk-form-label">日期:</label>
+                            <div class="uk-form-controls">
+                                <input id="up_to_date_date" v-model="date" name="date" type="text" data-uk-datepicker="{format:'YYYY-MM-DD'}" class="uk-width-1-1">
+                            </div>
+                        </div>
+                        <div class="uk-form-row">
+                            <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-save"></i> 执行</button>
+                            <a href="/" class="uk-button"><i class="uk-icon-times"></i> 取消</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
 
+    {% if all_account_records_amount>0 %}
+        <div class="uk-overflow-container uk-grid">
+            <div id="account_records_table" class="uk-width-1-1">
+            </div>
+        </div>
+        {% if all_account_records_amount>account_record_items_on_page %}
+            <ul id="account-record-pagination" class="uk-pagination" data-uk-pagination="{items:{{all_account_records_amount}}, itemsOnPage:{{account_record_items_on_page}}, currentPage:0}"></ul>
+        {% endif %}
+    {% endif %}
 
-    <div class="uk-overflow-container uk-grid">
-        <div class="uk-width-1-1">
-            <table class="uk-table uk-table-striped uk-table-condensed uk-text-nowrap">
-                <thead>
-                    <tr>
-                        <th>日期</th>
-                        <th>大盘</th>
-                        <th>本金</th>
-                        <th>利润</th>
-                        <th>总资产</th>
-                        <th>总市值</th>
-                        <th>银证资金</th>
-                        <th>银行资金</th>
-                        <th>浮动盈亏</th>
-                        <th>仓位</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                        <th>股票</th>
-                        <th>数量</th>
-                        <th>当前价</th>
-                        <th>卖出价</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for account_record in all_account_records %}
-                        <tr>
-                            <td>{{ account_record.date }}</td>
-                            <td>牛</td>
-                            <td>{{account_record.principle}}</td>
-                            <td>{{ account_record.total_profit }}</td>
-                            <td>{{account_record.total_assets}}</td>
-                            <td>{{account_record.total_stock_value}}</td>
-                            <td>{{account_record.security_funding}}</td>
-                            <td>{{account_record.bank_funding}}</td>
-                            <td>{{account_record.float_profit_lost}}</td>
-                            <td>{{account_record.stock_position*100}}%</td>
-                            {% for stock in account_record.stock_hold_records %}
-                                <td>{{ stock.stock_name }}</td>
-                                <td>{{stock.stock_amount}}</td>
-                                <td>{{stock.stock_current_price}}</td>
-                                <td>{{stock.stock_sell_price}}</td>
-                            {% endfor %}
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="uk-grid uk-grid-medium uk-grid-match" data-uk-grid-match="{target:'.uk-panel'}">
+        <div class="uk-width-1-2">
+            <div id="total_assets_curve" style="width: 100%;height:400px;"></div>
+        </div>
+        <div class="uk-width-1-2">
+            <div id="total_profit_curve" style="width: 100%;height:400px;"></div>
         </div>
     </div>
+
+    {% if all_stock_trades_amount>0 %}
+        <div class="uk-overflow-container uk-grid">
+            <div id="stock_trades_table" class="uk-width-1-1">
+            </div>
+        </div>
+        {% if all_stock_trades_amount>stock_trade_items_on_page %}
+            <ul id="stock-trade-pagination" class="uk-pagination" data-uk-pagination="{items:{{all_stock_trades_amount}}, itemsOnPage:{{stock_trade_items_on_page}}, currentPage:0}"></ul>
+        {% endif %}
+    {% endif %}
+
 {% endblock %}

@@ -177,8 +177,17 @@ function toSmartDate(timestamp) {
 }
 
 function getTodayString() {
-    var today = new Date();
-    return today.getFullYear()+'-'+(today.getMonth()+1)+'-'+today.getDate();
+    var today = new Date(),
+        month = today.getMonth()+1,
+        day = today.getDate();
+    return today.getFullYear()+'-'+(month<10 ? '0' : '')+month+'-'+(day<10 ? '0' : '')+day;
+}
+
+function getCurrentTime() {
+    var today = new Date(),
+        hh = today.getHours(),
+        mm = today.getMinutes();
+    return (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
 }
 
 
