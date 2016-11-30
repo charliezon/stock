@@ -699,7 +699,7 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
     try:
-        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=round_float(initial_funding), total_stock_value=0, total_assets=round_float(initial_funding), float_profit_lost=0, total_profit=0, principle=round_float(initial_funding))
         await account_record.save()
     except Error as e:
         account.remove()
@@ -746,7 +746,16 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
     try:
-        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=initial_security_funding, bank_funding=initial_bank_funding, total_stock_value=0, total_assets=initial_security_funding+initial_bank_funding, float_profit_lost=0, total_profit=initial_security_funding+initial_bank_funding-initial_funding, principle=initial_funding)
+        account_record = AccountRecord(date=date, 
+                                        account_id=account.id, 
+                                        stock_position=0, 
+                                        security_funding=round_float(initial_security_funding), 
+                                        bank_funding=round_float(initial_bank_funding), 
+                                        total_stock_value=0, 
+                                        total_assets=round_float(initial_security_funding+initial_bank_funding), 
+                                        float_profit_lost=0, 
+                                        total_profit=round_float(initial_security_funding+initial_bank_funding-initial_funding), 
+                                        principle=round_float(initial_funding))
         await account_record.save()
     except Error as e:
         account.remove()
