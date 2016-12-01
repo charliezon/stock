@@ -1547,17 +1547,63 @@ async def get_params(request, *, page):
     if len(dps)>0:
         for dp in dps:
             if dp.stock_market_status == 0:
-                dp.stock_market_status = '<span style="background-color:red;color:white">熊市</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-danger">熊市</span>'
             elif dp.stock_market_status == 1:
-                dp.stock_market_status = '<span style="background-color:pink;color:white">小牛市</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛市</span>'
             else:
-                dp.stock_market_status = '<span style="background-color:green;color:white">大牛市</span>'
-            dp.twenty_days_line='<span style="background-color:green;color:white">否</span>' if dp.twenty_days_line else '<span style="background-color:red;color:white">跌破</span>'
-            dp.big_fall_after_multi_bank_iron='<span style="background-color:red;color:white">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span style="background-color:green;color:white">否</span>'
-            dp.four_days_pursuit_ratio_decrease='<span style="background-color:red;color:white">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span style="background-color:green;color:white">否</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-success">大牛市</span>'
+            dp.twenty_days_line='<span class="uk-badge uk-badge-success">否</span>' if dp.twenty_days_line else '<span class="uk-badge uk-badge-danger">跌破</span>'
+            dp.big_fall_after_multi_bank_iron='<span class="uk-badge uk-badge-success">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span class="uk-badge uk-badge-danger">否</span>'
+            dp.four_days_pursuit_ratio_decrease='<span class="uk-badge uk-badge-danger">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span class="uk-badge uk-badge-success">否</span>'
             dp.shanghai_index = round_float(dp.shanghai_index)
-            dp.increase_range = str(round_float(dp.increase_range*100))+'%'
+            
             dp.three_days_average_shanghai_increase = str(round_float(dp.three_days_average_shanghai_increase*100))+'%'
+
+            if dp.buy_stock_amount > 0:
+                dp.buy_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.buy_stock_amount)+'</span>'
+            else:
+                dp.buy_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.buy_stock_amount)+'</span>'
+
+            if dp.pursuit_stock_ratio > 0.03:
+                dp.pursuit_stock_amount = '<span class="uk-badge uk-badge-warning">'+str(dp.pursuit_stock_amount)+'</span>'
+            elif dp.pursuit_stock_ratio < 0.0036:
+                dp.pursuit_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.pursuit_stock_amount)+'</span>'
+            else:
+                dp.pursuit_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.pursuit_stock_amount)+'</span>'
+
+            if dp.strong_pursuit_stock_ratio < 0.0018:
+                dp.strong_pursuit_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.strong_pursuit_stock_amount)+'</span>'
+            else:
+                dp.strong_pursuit_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.strong_pursuit_stock_amount)+'</span>'
+
+            if dp.pursuit_kdj_die_stock_ratio >= 0.5:
+                dp.pursuit_kdj_die_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.pursuit_kdj_die_stock_amount)+'</span>'
+            else:
+                dp.pursuit_kdj_die_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.pursuit_kdj_die_stock_amount)+'</span>'
+
+            if dp.run_stock_ratio > 0.02484:
+                dp.run_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.run_stock_amount)+'</span>'
+            else:
+                dp.run_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.run_stock_amount)+'</span>'
+
+            if dp.iron_stock_amount >= 2:
+                dp.iron_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.iron_stock_amount)+'</span>'
+            else:
+                dp.iron_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.iron_stock_amount)+'</span>'
+
+            if dp.bank_stock_amount >= 2:
+                dp.bank_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.bank_stock_amount)+'</span>'
+            else:
+                dp.bank_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.bank_stock_amount)+'</span>'
+
+            inc_str = str(round_float(dp.increase_range*100))+'%'
+            if dp.increase_range >= 0.015:
+                dp.increase_range = '<span class="uk-badge uk-badge-warning">'+inc_str+'</span>'
+            elif dp.increase_range <= -0.015:
+                dp.increase_range = '<span class="uk-badge uk-badge-danger">'+inc_str+'</span>'
+            else:
+                dp.increase_range = '<span class="uk-badge uk-badge-success">'+inc_str+'</span>'
+
     return {
         '__template__': 'param_records.html',
         'dps': dps
