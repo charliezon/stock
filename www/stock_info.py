@@ -217,11 +217,11 @@ def get_stock(code):
         return get_stock_via_name(code)
 
 def get_current_price(stock_code, date):
-    if date != today():
+    if date == today():
+        current_price = find_current_price(stock_code)
+    if not current_price:
         numbers = date.split('-')
         current_price = find_close_price(stock_code, int(numbers[0]), int(numbers[1]), int(numbers[2]))
-    else:
-        current_price = find_current_price(stock_code)
     if current_price:
         return current_price
     else:
