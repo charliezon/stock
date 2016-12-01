@@ -340,7 +340,7 @@ async def get_account(request, *, id):
                 max_position = 0.5
         logging.info('最大仓位：'+str(max_position))
         # 清仓
-        clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
         logging.info('清仓：'+str(clear))
 
         dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
@@ -357,7 +357,7 @@ async def get_account(request, *, id):
                 break
 
         # 不能买
-        cant_buy = dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
+        cant_buy = dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
         logging.info(str(dp[0].shanghai_break_twenty_days_line_for_two_days))
         logging.info(str(dp[0].shenzhen_break_twenty_days_line_for_two_days))
         logging.info(str(dadieweizhidie))
@@ -398,15 +398,17 @@ async def get_account(request, *, id):
         logging.info('方式2买入仓位：'+str(method2_buy_position))
 
     advices = []
+    current_position = 0
+    if len(account_records)>0:
+        # 当前仓位
+        current_position = account_records[0].stock_position / 100
     
     if clear:
-        advices.append('<span style="color:red"><strong>今日务必择机清仓</strong></span>')
+        if current_position > 0:
+            advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong></span>')
     else:
-        current_position = 0
         if len(account_records)>0:
             most_recent_account_record = account_records[0]
-            # 当前仓位
-            current_position = most_recent_account_record.stock_position / 100
             if current_position >= max_position:
                 cant_buy = True
                 logging.info('current_position：'+str(current_position))
