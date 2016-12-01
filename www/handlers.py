@@ -1557,7 +1557,10 @@ async def get_params(request, *, page):
             dp.four_days_pursuit_ratio_decrease='<span class="uk-badge uk-badge-danger">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span class="uk-badge uk-badge-success">否</span>'
             dp.shanghai_index = round_float(dp.shanghai_index)
             
-            dp.three_days_average_shanghai_increase = str(round_float(dp.three_days_average_shanghai_increase*100))+'%'
+            if dp.three_days_average_shanghai_increase >= 0.015:
+                dp.three_days_average_shanghai_increase = '<span class="uk-badge uk-badge-danger">'+str(round_float(dp.three_days_average_shanghai_increase*100))+'%</span>'
+            else:
+                dp.three_days_average_shanghai_increase = '<span class="uk-badge uk-badge-success">'+str(round_float(dp.three_days_average_shanghai_increase*100))+'%</span>'
 
             if dp.buy_stock_amount > 0:
                 dp.buy_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.buy_stock_amount)+'</span>'
