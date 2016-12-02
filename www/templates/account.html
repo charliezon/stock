@@ -666,7 +666,7 @@ function set_chart_option(chart, title_text, min, max, x_data, serie_name, y_dat
         </div>
     </div>
 
-    {% if all_stock_trades_amount>0 %}
+    {% if all_stock_trades_amount and all_stock_trades_amount>0 %}
         <div class="uk-overflow-container uk-grid">
             <div id="stock_trades_table" class="uk-width-1-1">
             </div>
