@@ -404,13 +404,12 @@ async def get_account(request, *, id):
     if len(account_records)>0:
         # 当前仓位
         current_position = account_records[0].stock_position / 100
-    
+        most_recent_account_record = account_records[0]    
     if clear:
         if current_position > 0:
             advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong></span>')
     else:
         if len(account_records)>0:
-            most_recent_account_record = account_records[0]
             if current_position >= max_position:
                 cant_buy = True
                 logging.info('current_position：'+str(current_position))
