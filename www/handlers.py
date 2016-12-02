@@ -220,6 +220,7 @@ async def find_account_record(account_id, date):
         if len(pre_account_records) <=0:
             raise APIPermissionError()
         try:
+            logging.info("-------------------------------1")
             account_record = AccountRecord(
                 date=date, 
                 account_id=account_id, 
@@ -264,6 +265,7 @@ async def find_account_record(account_id, date):
         except Error as e:
             raise APIPermissionError()
     else:
+        logging.info("-------------------------------2")
         account_record = all_account_records[0]
         stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
         if len(stocks) > 0:
@@ -461,6 +463,7 @@ async def get_account(request, *, id):
     stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id])
 
     all_account_records_amount = len(account_records)
+    logging.info('--------------------------all_account_records_amount: '+str(all_account_records_amount))
     all_stock_trades_amount = len(stock_trades)
 
     return {
