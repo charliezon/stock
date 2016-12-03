@@ -575,13 +575,14 @@ async def get_account_record(request, *, account_id, date, stock_amount):
             account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
         dp = await DailyParam.find(account_record.date)
         account_record.stock_market_status = '-'
+
         if dp:
             if dp.stock_market_status == 0:
-                account_record.stock_market_status = '熊市'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊市</span>'
             elif dp.stock_market_status == 1:
-                account_record.stock_market_status = '小牛市'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛市</span>'
             else:
-                account_record.stock_market_status = '大牛市'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛市</span>'
     else:
         raise APIPermissionError()
     return {
