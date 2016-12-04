@@ -26,8 +26,8 @@
         <tbody>
             {% for dp in dps %}
                 <tr>
-                    <td>{{dp.date}} <a class="uk-button-small uk-button-success" href="/param_statistical/{{dp.date}}">修改</a></td>
-                    <td>{{dp.recommendation|safe}}</td>
+                    <td>{{dp.date}} <a class="uk-button-small" href="/param_statistical/{{dp.date}}"><i class="uk-icon-edit"></i></a></td>
+                    <td><small>{{dp.recommendation|safe}}</small></td>
                     <td>{{dp.shanghai_index|safe}}</td>
                     <td>{{dp.stock_market_status|safe}}</td>
                     <td>{{dp.twenty_days_line|safe}}</td>
