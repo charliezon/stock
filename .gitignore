@@ -17,6 +17,7 @@ build
 
 # directory
 Dockerfiles/*
+Docker/*
 remote/*
 
 #SQL
