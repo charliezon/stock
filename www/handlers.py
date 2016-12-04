@@ -520,11 +520,14 @@ async def get_account_records(request, *, account_id, page):
             account_record.stock_market_status = '-'
             if dp:
                 if dp.stock_market_status == 0:
-                    account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊市</span>'
+                    if dp.twenty_days_line:
+                        account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-success">沪20上</span>'
+                    else:
+                        account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-danger">沪20下</span>'
                 elif dp.stock_market_status == 1:
-                    account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛市</span>'
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛</span>'
                 else:
-                    account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛市</span>'
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛</span>'
     return {
         '__template__': 'account_records.html',
         'account_records': account_records
@@ -578,11 +581,14 @@ async def get_account_record(request, *, account_id, date, stock_amount):
 
         if dp:
             if dp.stock_market_status == 0:
-                account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊市</span>'
+                if dp.twenty_days_line:
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-success">沪20上</span>'
+                else:
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-danger">沪20下</span>'
             elif dp.stock_market_status == 1:
-                account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛市</span>'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛</span>'
             else:
-                account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛市</span>'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛</span>'
     else:
         raise APIPermissionError()
     return {
@@ -1550,11 +1556,14 @@ async def get_params(request, *, page):
     if len(dps)>0:
         for dp in dps:
             if dp.stock_market_status == 0:
-                dp.stock_market_status = '<span class="uk-badge uk-badge-danger">熊市</span>'
+                if dp.twenty_days_line:
+                    dp.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-success">沪20上</span>'
+                else:
+                    dp.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-danger">沪20下</span>'
             elif dp.stock_market_status == 1:
-                dp.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛市</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛</span>'
             else:
-                dp.stock_market_status = '<span class="uk-badge uk-badge-success">大牛市</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-success">大牛</span>'
             dp.twenty_days_line='<span class="uk-badge uk-badge-success">否</span>' if dp.twenty_days_line else '<span class="uk-badge uk-badge-danger">跌破</span>'
             dp.big_fall_after_multi_bank_iron='<span class="uk-badge uk-badge-success">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span class="uk-badge uk-badge-danger">否</span>'
             dp.four_days_pursuit_ratio_decrease='<span class="uk-badge uk-badge-danger">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span class="uk-badge uk-badge-success">否</span>'
