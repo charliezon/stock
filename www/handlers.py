@@ -1524,8 +1524,12 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                         too_big_increase=(pursuit_stock_ratio>=0.03),
                         futures=futures,
                         method_1=method_1,
-                        method_2=method_2)
+                        method_2=method_2,
+                        recommendation='')
         await dp.save()
+    r = await get_recommend(dp)
+    dp.recommendation = r
+    await dp.update()
     return dp
 
 @asyncio.coroutine
@@ -1655,3 +1659,93 @@ async def get_index_info(request, date):
             sum = sum + (index_list[i]-index_list[i+1])/index_list[i+1]
         three_days_average_shanghai_increase = round_float(sum/3, 4)
     return dict(shanghai_index=shanghai_index, increase_range=increase_range, three_days_average_shanghai_increase=three_days_average_shanghai_increase)
+
+@asyncio.coroutine
+async def get_recommend(dp):
+    dadieweizhidie = False
+    dp1 = await DailyParam.findAll('date<=? and increase_range<?', [dp.date, -0.015], orderBy='date desc', limit=1)
+    if len(dp1)>0:
+        dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
+        if len(dp2)==0:
+            dadieweizhidie = True 
+    logging.info('大跌未止跌：'+str(dadieweizhidie))
+    # 最大仓位
+    max_position = 0
+    if dp.stock_market_status == 0:
+        max_position = 0.25
+        if not dp.big_fall_after_multi_bank_iron:
+            max_position = 0.125
+    if dp.stock_market_status == 1 or dp.stock_market_status == 2:
+        max_position = 1
+        if dadieweizhidie or not dp.big_fall_after_multi_bank_iron:
+            max_position = 0.5
+    logging.info('最大仓位：'+str(max_position))
+    # 清仓
+    clear = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
+    logging.info('清仓：'+str(clear))
+    if clear:
+        return '明日务必择机清仓！'
+
+    dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
+    flag1 = False
+    for d in dp3:
+        if d.run_stock_ratio > 0.02484:
+            flag1 = True
+            break
+    dp4 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=2)
+    flag2 = False
+    for d in dp4:
+        if d.pursuit_kdj_die_stock_ratio>=0.5:
+            flag2 = True
+            break
+
+    # 不能买
+    cant_buy = dadieweizhidie or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
+    logging.info(str(dp.shanghai_break_twenty_days_line_for_two_days))
+    logging.info(str(dp.shenzhen_break_twenty_days_line_for_two_days))
+    logging.info(str(dadieweizhidie))
+    logging.info(str(dp.pursuit_stock_ratio))
+    logging.info(str(dp.strong_pursuit_stock_ratio))
+    logging.info(str(flag1))
+    logging.info(str(flag2))
+    logging.info('不能买：'+str(cant_buy))
+
+    if cant_buy:
+        return '明日不能买入！'
+
+    # 方式1买入仓位
+    if dp.method_1:
+        method1_buy_position = 1/4
+        if dp.stock_market_status == 0:
+            if dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+            elif not dp.big_fall_after_multi_bank_iron:
+                method1_buy_position = method1_buy_position/2
+        if dp.stock_market_status == 1:
+            if dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+        if dp.stock_market_status == 2:
+            if dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+        logging.info('方式1买入仓位：'+str(method1_buy_position))
+        if method1_buy_position>0:
+            return '明日以开盘价买入'+dp.method_1+str(round_float(method1_buy_position*100))+'%仓'
+    # 方式2买入仓位
+    if dp.method_2:
+        method2_buy_position = 1/16
+        if dp.stock_market_status == 0:
+            if dadieweizhidie:
+                method2_buy_position = 0
+            elif not dp.big_fall_after_multi_bank_iron:
+                method2_buy_position = method2_buy_position/2
+        if dp.stock_market_status == 1:
+            if dadieweizhidie:
+                method2_buy_position = 0
+        if dp.stock_market_status == 2:
+            method2_buy_position = 1/4
+            if dadieweizhidie:
+                method2_buy_position = 0
+        logging.info('方式2买入仓位：'+str(method2_buy_position))
+        if method2_buy_position>0:
+            return '明日以开盘价买入'+dp.method_2+str(round_float(method2_buy_position*100))+'%仓'
+    return 'None'

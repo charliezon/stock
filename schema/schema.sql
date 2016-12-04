@@ -124,6 +124,7 @@ create table daily_params (
     `futures` varchar(50) not null,
     `method_1` varchar(50) not null,
     `method_2` varchar(50) not null,
+    `recommendation` varchar(50) not null,
     `created_at` real not null,
     key `idx_created_at` (`created_at`),
     primary key (`date`)

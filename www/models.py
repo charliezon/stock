@@ -151,5 +151,6 @@ class DailyParam(Model):
     futures = StringField(ddl='varchar(50)') # 期指交割日，格式：2016-11-18,2016-12-16 （以英文逗号分隔）
     method_1 = StringField(ddl='varchar(50)') # 方式1选出的股票名称，不能是3天内刚复牌的股票
     method_2 = StringField(ddl='varchar(50)') # 方式2选出的股票名称，不能是3天内刚复牌的股票
+    recommendation = StringField(ddl='varchar(50)') # 操作建议
     created_at = FloatField(default=time.time)
 
