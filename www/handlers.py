@@ -348,6 +348,8 @@ async def get_account(request, *, id):
         dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
         flag1 = False
         for d in dp3:
+            # TODO 比较下面两个条件哪个好
+            # if d.run_stock_ratio > 0.02484:
             if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio<0.03:
                 flag1 = True
                 break
@@ -1689,6 +1691,8 @@ async def get_recommend(dp):
     dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
     flag1 = False
     for d in dp3:
+        # TODO 比较下面两个条件哪个好
+        # if d.run_stock_ratio > 0.02484:
         if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio < 0.03:
             flag1 = True
             break
