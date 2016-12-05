@@ -408,8 +408,7 @@ async def get_account(request, *, id):
         current_position = account_records[0].stock_position / 100
         most_recent_account_record = account_records[0]    
     if clear:
-        if current_position > 0:
-            advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong></span>')
+        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong></span>')
     else:
         if len(account_records)>0:
             if current_position >= max_position:
@@ -426,7 +425,9 @@ async def get_account(request, *, id):
                     else:
                         d_str = d.strftime("%Y-%m-%d")
                         advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
-        if not cant_buy:
+        if cant_buy:
+            advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
+        else:
             if dp[0].method_1:
                 stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
