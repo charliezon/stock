@@ -1762,4 +1762,4 @@ async def get_recommend(dp):
         logging.info('方式2买入仓位：'+str(method2_buy_position))
         if method2_buy_position>0:
             return '明日以开盘价买入'+dp.method_2+str(round_float(method2_buy_position*100))+'%仓'
-    return 'None'
+    return '明日不能买入！'
