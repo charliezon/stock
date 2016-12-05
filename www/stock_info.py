@@ -217,6 +217,7 @@ def get_stock(code):
         return get_stock_via_name(code)
 
 def get_current_price(stock_code, date):
+    current_price = False
     if date == today():
         current_price = find_current_price(stock_code)
     if not current_price:
