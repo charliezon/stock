@@ -56,8 +56,10 @@ $(function () {
         stock_market_status: {{dp.stock_market_status}},
         twenty_days_line: {{dp.twenty_days_line}},
         shanghai_break_twenty_days_line: {{dp.shanghai_break_twenty_days_line}},
+        shanghai_break_twenty_days_line_obviously: {{dp.shanghai_break_twenty_days_line_obviously}},
         shanghai_break_twenty_days_line_for_two_days: {{dp.shanghai_break_twenty_days_line_for_two_days}},
         shenzhen_break_twenty_days_line: {{dp.shenzhen_break_twenty_days_line}},
+        shenzhen_break_twenty_days_line_obviously: {{dp.shenzhen_break_twenty_days_line_obviously}},
         shenzhen_break_twenty_days_line_for_two_days: {{dp.shenzhen_break_twenty_days_line_for_two_days}},
 
     });
@@ -129,6 +131,13 @@ $(function () {
                 </div>
             </div>
             <div class="uk-form-row">
+                <label class="uk-form-label"><strong>沪指明显跌破20日线吗？</strong><small><span style="color:red"><br>第一天跌破<br>(沪综指-20日线)/20日线<-0.8%</span></small></label>
+                <div class="uk-form-controls uk-form-controls-text">
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_obviously" id="yes_shanghai_break_twenty_days_line_obviously" name="shanghai_break_twenty_days_line_obviously" value="1"> 是</label>
+                    <label><input type="radio" v-model="shanghai_break_twenty_days_line_obviously" id="no_shanghai_break_twenty_days_line_obviously" name="shanghai_break_twenty_days_line_obviously" value="0"> 否</label>
+                </div>
+            </div>
+            <div class="uk-form-row">
                 <label class="uk-form-label"><strong>沪指连续两天跌破20日线吗？</strong><br><small><span style="color:red">同时未连续三天</span></small></label>
                 <div class="uk-form-controls uk-form-controls-text">
                     <label><input type="radio" v-model="shanghai_break_twenty_days_line_for_two_days" id="yes_shanghai_break_twenty_days_line_for_two_days" name="shanghai_break_twenty_days_line_for_two_days" value="1"> 是</label>
@@ -140,6 +149,13 @@ $(function () {
                 <div class="uk-form-controls uk-form-controls-text">
                     <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="yes_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="1"> 是</label>
                     <label><input type="radio" v-model="shenzhen_break_twenty_days_line" id="no_shenzhen_break_twenty_days_line" name="shenzhen_break_twenty_days_line" value="0"> 否</label>
+                </div>
+            </div>
+            <div class="uk-form-row">
+                <label class="uk-form-label"><strong>深指明显跌破20日线吗？</strong><small><span style="color:red"><br>第一天跌破<br>(深成指-20日线)/20日线<-0.8%</span></small></label>
+                <div class="uk-form-controls uk-form-controls-text">
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_obviously" id="yes_shenzhen_break_twenty_days_line_obviously" name="shenzhen_break_twenty_days_line_obviously" value="1"> 是</label>
+                    <label><input type="radio" v-model="shenzhen_break_twenty_days_line_obviously" id="no_shenzhen_break_twenty_days_line_obviously" name="shenzhen_break_twenty_days_line_obviously" value="0"> 否</label>
                 </div>
             </div>
             <div class="uk-form-row">

@@ -342,7 +342,7 @@ async def get_account(request, *, id):
                 max_position = 0.5
         logging.info('最大仓位：'+str(max_position))
         # 清仓
-        clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
         logging.info('清仓：'+str(clear))
 
         dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
@@ -361,7 +361,7 @@ async def get_account(request, *, id):
                 break
 
         # 不能买
-        cant_buy = dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
+        cant_buy = dadieweizhidie or dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
         logging.info(str(dp[0].shanghai_break_twenty_days_line_for_two_days))
         logging.info(str(dp[0].shenzhen_break_twenty_days_line_for_two_days))
         logging.info(str(dadieweizhidie))
@@ -1304,8 +1304,10 @@ async def handle_param_statistical(request, date):
     if dp:
         dp.twenty_days_line = int(dp.twenty_days_line)
         dp.shanghai_break_twenty_days_line = int(dp.shanghai_break_twenty_days_line)
+        dp.shanghai_break_twenty_days_line_obviously = int(dp.shanghai_break_twenty_days_line_obviously)
         dp.shanghai_break_twenty_days_line_for_two_days = int(dp.shanghai_break_twenty_days_line_for_two_days)
         dp.shenzhen_break_twenty_days_line = int(dp.shenzhen_break_twenty_days_line)
+        dp.shenzhen_break_twenty_days_line_obviously = int(dp.shenzhen_break_twenty_days_line_obviously)
         dp.shenzhen_break_twenty_days_line_for_two_days = int(dp.shenzhen_break_twenty_days_line_for_two_days)        
 
     if not dp:
@@ -1331,16 +1333,20 @@ async def handle_param_statistical(request, date):
             dp.stock_market_status = dps[0].stock_market_status
             dp.twenty_days_line = int(dps[0].twenty_days_line)
             dp.shanghai_break_twenty_days_line = int(dps[0].shanghai_break_twenty_days_line)
+            dp.shanghai_break_twenty_days_line_obviously = int(dps[0].shanghai_break_twenty_days_line_obviously)
             dp.shanghai_break_twenty_days_line_for_two_days = int(dps[0].shanghai_break_twenty_days_line_for_two_days)
             dp.shenzhen_break_twenty_days_line = int(dps[0].shenzhen_break_twenty_days_line)
+            dp.shenzhen_break_twenty_days_line_obviously = int(dps[0].shenzhen_break_twenty_days_line_obviously)
             dp.shenzhen_break_twenty_days_line_for_two_days = int(dps[0].shenzhen_break_twenty_days_line_for_two_days)
         else:
             dp.futures = ''
             dp.stock_market_status = 0
             dp.twenty_days_line = 0
             dp.shanghai_break_twenty_days_line = 0
+            dp.shanghai_break_twenty_days_line_obviously = 0
             dp.shanghai_break_twenty_days_line_for_two_days = 0
             dp.shenzhen_break_twenty_days_line = 0
+            dp.shenzhen_break_twenty_days_line_obviously = 0
             dp.shenzhen_break_twenty_days_line_for_two_days = 0
     return {
         '__template__': 'param_statistical.html',
@@ -1352,7 +1358,7 @@ async def handle_param_statistical(request, date):
 @asyncio.coroutine
 @post('/api/param_statistical')
 async def api_param_statistical(request, *, date, shanghai_index, stock_market_status, twenty_days_line, increase_range, three_days_average_shanghai_increase, 
-                                shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line,
+                                shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_obviously, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line, shenzhen_break_twenty_days_line_obviously,
                                 shenzhen_break_twenty_days_line_for_two_days, all_stock_amount, buy_stock_amount, pursuit_stock_amount,
                                 iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount,
                                 futures, method_1, method_2):
@@ -1474,8 +1480,10 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         dp.increase_range=increase_range
         dp.three_days_average_shanghai_increase=three_days_average_shanghai_increase
         dp.shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False
+        dp.shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False
         dp.shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False
         dp.shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False
+        dp.shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False
         dp.shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False
         dp.all_stock_amount=all_stock_amount
         dp.buy_stock_amount=buy_stock_amount
@@ -1505,8 +1513,10 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                         increase_range=increase_range,
                         three_days_average_shanghai_increase=three_days_average_shanghai_increase,
                         shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False,
+                        shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False,
                         shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False,
                         shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False,
+                        shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False,
                         shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False,
                         all_stock_amount=all_stock_amount,
                         buy_stock_amount=buy_stock_amount,
@@ -1683,7 +1693,7 @@ async def get_recommend(dp):
             max_position = 0.5
     logging.info('最大仓位：'+str(max_position))
     # 清仓
-    clear = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
+    clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
     logging.info('清仓：'+str(clear))
     if clear:
         return '明日务必择机清仓！'
@@ -1704,7 +1714,7 @@ async def get_recommend(dp):
             break
 
     # 不能买
-    cant_buy = dadieweizhidie or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
+    cant_buy = dadieweizhidie or dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
     logging.info(str(dp.shanghai_break_twenty_days_line_for_two_days))
     logging.info(str(dp.shenzhen_break_twenty_days_line_for_two_days))
     logging.info(str(dadieweizhidie))

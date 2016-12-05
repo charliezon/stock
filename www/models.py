@@ -129,8 +129,10 @@ class DailyParam(Model):
     increase_range = FloatField() #沪指涨幅
     three_days_average_shanghai_increase = FloatField() #沪指近3天平均涨幅
     shanghai_break_twenty_days_line = BooleanField() # False: 沪指非第一天跌破20日线, True: 沪指第一天跌破20日线
+    shanghai_break_twenty_days_line_obviously = BooleanField() # False: 沪指非第一天明显跌破20日线, True: 沪指第一天明显跌破20日线
     shanghai_break_twenty_days_line_for_two_days = BooleanField() # False: 沪指非连续两天跌破20日线, True: 沪指连续两天跌破20日线（未连续3天）
     shenzhen_break_twenty_days_line = BooleanField() # False: 深指非第一天跌破20日线, True: 深指第一天跌破20日线
+    shenzhen_break_twenty_days_line_obviously = BooleanField() # False: 深指非第一天明显跌破20日线, True: 深指第一天明显跌破20日线
     shenzhen_break_twenty_days_line_for_two_days = BooleanField() # False: 深指非连续两天跌破20日线, True: 深指连续两天跌破20日线（未连续3天）
     all_stock_amount = IntegerField()  # 沪深A股+创业板总股票数
     buy_stock_amount = IntegerField()  # 沪深A股+创业板发出买入信号的股票数
