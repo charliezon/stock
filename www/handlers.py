@@ -341,8 +341,9 @@ async def get_account(request, *, id):
             if dadieweizhidie or not dp[0].big_fall_after_multi_bank_iron:
                 max_position = 0.5
         logging.info('最大仓位：'+str(max_position))
-        # 清仓
-        clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        # 清仓 - 去掉了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
+        #clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days
         logging.info('清仓：'+str(clear))
 
         dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
@@ -1693,8 +1694,9 @@ async def get_recommend(dp):
         if dadieweizhidie or not dp.big_fall_after_multi_bank_iron:
             max_position = 0.5
     logging.info('最大仓位：'+str(max_position))
-    # 清仓
-    clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
+    # 清仓 - 去掉了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
+    #clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
+    clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days
     logging.info('清仓：'+str(clear))
     if clear:
         return '明日务必择机清仓！'
