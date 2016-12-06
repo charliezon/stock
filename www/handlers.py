@@ -394,6 +394,7 @@ async def get_account(request, *, id):
             elif not dp[0].big_fall_after_multi_bank_iron:
                 method2_buy_position = method2_buy_position/2
         if dp[0].stock_market_status == 1:
+            method2_buy_position = 1/10
             if dadieweizhidie:
                 method2_buy_position = 0
         if dp[0].stock_market_status == 2:
@@ -1755,6 +1756,7 @@ async def get_recommend(dp):
             elif not dp.big_fall_after_multi_bank_iron:
                 method2_buy_position = method2_buy_position/2
         if dp.stock_market_status == 1:
+            method2_buy_position = 1/10
             if dadieweizhidie:
                 method2_buy_position = 0
         if dp.stock_market_status == 2:
