@@ -875,7 +875,6 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
         exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
         exist_stocks[0].stock_sell_price = sell_price
-        exist_stocks[0].stock_buy_date = date
         exist_stocks[0].stock_current_price=current_price
         await exist_stocks[0].update()
     else:
