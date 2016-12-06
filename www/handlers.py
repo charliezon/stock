@@ -421,7 +421,7 @@ async def get_account(request, *, id):
             stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
             if len(stocks) > 0:
                 for stock in stocks:
-                    d = convert_date(stock.stock_buy_date) + timedelta(days=31)
+                    d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days)
                     if d < datetime.datetime.today():
                         advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
                     else:
