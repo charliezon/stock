@@ -410,7 +410,7 @@ async def get_account(request, *, id):
         current_position = account_records[0].stock_position / 100
         most_recent_account_record = account_records[0]    
     if clear:
-        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong></span>')
+        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><br><small>勿急，收盘前清即可。</small></span>')
     else:
         if len(account_records)>0:
             if current_position >= max_position:
