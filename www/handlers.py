@@ -423,10 +423,10 @@ async def get_account(request, *, id):
                 for stock in stocks:
                     d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days)
                     if d < datetime.datetime.today():
-                        advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股（停牌顺延）')
                     else:
                         d_str = d.strftime("%Y-%m-%d")
-                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股（停牌顺延）')
         if cant_buy:
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
         else:
