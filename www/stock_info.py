@@ -165,7 +165,7 @@ def find_close_price(stock_code, year, month, day):
                         if len(numbers) >= 2:
                             pre_number = numbers[2]
                 if last_day and date > last_day and pre_number:
-                    result = pre_number
+                    result = float(pre_number.strip())
     except error.HTTPError as e:
         logging.error(e)
     except error.URLError as e:
