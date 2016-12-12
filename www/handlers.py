@@ -349,9 +349,10 @@ async def get_account(request, *, id):
         dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
         flag1 = False
         for d in dp3:
-            # TODO 比较下面两个条件哪个好
+            # TODO 比较下面三个条件哪个好
             # if d.run_stock_ratio > 0.02484:
-            if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio<0.03:
+            #if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio<0.03:
+            if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
                 flag1 = True
                 break
         dp4 = await DailyParam.findAll(orderBy='date desc', limit=2)
@@ -1674,6 +1675,7 @@ async def get_index_info(request, date):
         three_days_average_shanghai_increase = round_float(sum/3, 4)
     return dict(shanghai_index=shanghai_index, increase_range=increase_range, three_days_average_shanghai_increase=three_days_average_shanghai_increase)
 
+# TODO it's ugly duplicate code. will refactor it later.
 @asyncio.coroutine
 async def get_recommend(dp):
     dadieweizhidie = False
@@ -1704,9 +1706,10 @@ async def get_recommend(dp):
     dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
     flag1 = False
     for d in dp3:
-        # TODO 比较下面两个条件哪个好
+        # TODO 比较下面三个条件哪个好
         # if d.run_stock_ratio > 0.02484:
-        if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio < 0.03:
+        #if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio < 0.03:
+        if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
             flag1 = True
             break
     dp4 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=2)
