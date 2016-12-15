@@ -414,6 +414,7 @@ async def get_account(request, *, id):
         current_position = account_records[0].stock_position / 100
         most_recent_account_record = account_records[0]    
     if clear:
+        # TODO 非大牛市中的方式1的股票不清仓
         advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><br><small>勿急，收盘前清即可。</small></span>')
     else:
         if len(account_records)>0:
@@ -1703,6 +1704,7 @@ async def get_recommend(dp):
     #clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days
     logging.info('清仓：'+str(clear))
     if clear:
+         # TODO 非大牛市中的方式1的股票不清仓
         return '明日务必择机清仓！'
 
     dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
