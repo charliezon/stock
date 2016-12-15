@@ -362,8 +362,12 @@ async def get_account(request, *, id):
                 flag2 = True
                 break
 
+        flag3 = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag2
+
         # 不能买
-        cant_buy = dadieweizhidie or dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
+        cant_buy = dadieweizhidie or flag1 or flag3
+        can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
+        can_buy_method_2 = not cant_buy
         logging.info(str(dp[0].shanghai_break_twenty_days_line_for_two_days))
         logging.info(str(dp[0].shenzhen_break_twenty_days_line_for_two_days))
         logging.info(str(dadieweizhidie))
@@ -375,32 +379,31 @@ async def get_account(request, *, id):
 
         # 方式1买入仓位
         method1_buy_position = 1/4
-        if dp[0].stock_market_status == 0:
-            if dadieweizhidie:
-                method1_buy_position = method1_buy_position/4
-            elif not dp[0].big_fall_after_multi_bank_iron:
+        if not cant_buy:
+            if not dp[0].big_fall_after_multi_bank_iron:
                 method1_buy_position = method1_buy_position/2
-        if dp[0].stock_market_status == 1:
-            if dadieweizhidie:
+        else:
+            if can_buy_method_1 and dadieweizhidie:
                 method1_buy_position = method1_buy_position/4
-        if dp[0].stock_market_status == 2:
-            if dadieweizhidie:
-                method1_buy_position = method1_buy_position/4
+            elif can_buy_method_1:
+                method1_buy_position = method1_buy_position/3
+            else:
+                method1_buy_position = 0
         logging.info('方式1买入仓位：'+str(method1_buy_position))
         # 方式2买入仓位
         method2_buy_position = 1/16
         if dp[0].stock_market_status == 0:
-            if dadieweizhidie:
+            if not can_buy_method_2:
                 method2_buy_position = 0
             elif not dp[0].big_fall_after_multi_bank_iron:
                 method2_buy_position = method2_buy_position/2
         if dp[0].stock_market_status == 1:
             method2_buy_position = 1/10
-            if dadieweizhidie:
+            if not can_buy_method_2:
                 method2_buy_position = 0
         if dp[0].stock_market_status == 2:
-            method2_buy_position = 1/4
-            if dadieweizhidie:
+            method2_buy_position = 1/6
+            if not can_buy_method_2:
                 method2_buy_position = 0
         logging.info('方式2买入仓位：'+str(method2_buy_position))
 
@@ -415,10 +418,8 @@ async def get_account(request, *, id):
     else:
         if len(account_records)>0:
             if current_position >= max_position:
-                cant_buy = True
-                logging.info('current_position：'+str(current_position))
-                logging.info('max_position'+str(max_position))
-                logging.info('不能买：'+str(cant_buy))
+                can_buy_method_1 = False
+                can_buy_method_2 = False
             stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
             if len(stocks) > 0:
                 for stock in stocks:
@@ -429,10 +430,10 @@ async def get_account(request, *, id):
                         d_str = d.strftime("%Y-%m-%d")
                         advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
                 advices.append('<span style="color:Orange"><strong>若股票持有期间有过停牌，则按停牌日顺延</strong></span>')
-        if cant_buy:
+        if not can_buy_method_1 and not can_buy_method_2:
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
         else:
-            if dp[0].method_1:
+            if can_buy_method_1 and dp[0].method_1:
                 stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
                 if not stocks or len(stocks)!=1:
@@ -446,7 +447,7 @@ async def get_account(request, *, id):
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
-            elif dp[0].method_2:
+            elif can_buy_method_2 and dp[0].method_2:
                 stocks = get_stock_via_name(dp[0].method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
                 if not stocks or len(stocks)!=1:
@@ -1720,34 +1721,28 @@ async def get_recommend(dp):
             flag2 = True
             break
 
+    flag3 = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag2
     # 不能买
-    cant_buy = dadieweizhidie or dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag1 or flag2
-    logging.info(str(dp.shanghai_break_twenty_days_line_for_two_days))
-    logging.info(str(dp.shenzhen_break_twenty_days_line_for_two_days))
-    logging.info(str(dadieweizhidie))
-    logging.info(str(dp.pursuit_stock_ratio))
-    logging.info(str(dp.strong_pursuit_stock_ratio))
-    logging.info(str(flag1))
-    logging.info(str(flag2))
-    logging.info('不能买：'+str(cant_buy))
+    cant_buy = dadieweizhidie or flag1 or flag3
+    can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
+    can_buy_method_2 = not cant_buy
 
-    if cant_buy:
+    if not can_buy_method_1 and not can_buy_method_2:
         return '明日不能买入！'
 
     # 方式1买入仓位
     if dp.method_1:
         method1_buy_position = 1/4
-        if dp.stock_market_status == 0:
-            if dadieweizhidie:
-                method1_buy_position = method1_buy_position/4
-            elif not dp.big_fall_after_multi_bank_iron:
+        if not cant_buy:
+            if not dp.big_fall_after_multi_bank_iron:
                 method1_buy_position = method1_buy_position/2
-        if dp.stock_market_status == 1:
-            if dadieweizhidie:
+        else:
+            if can_buy_method_1 and dadieweizhidie:
                 method1_buy_position = method1_buy_position/4
-        if dp.stock_market_status == 2:
-            if dadieweizhidie:
-                method1_buy_position = method1_buy_position/4
+            elif can_buy_method_1:
+                method1_buy_position = method1_buy_position/3
+            else:
+                method1_buy_position = 0
         logging.info('方式1买入仓位：'+str(method1_buy_position))
         if method1_buy_position>0:
             return '明日以开盘价买入'+dp.method_1+str(round_float(method1_buy_position*100))+'%仓'
@@ -1755,17 +1750,17 @@ async def get_recommend(dp):
     if dp.method_2:
         method2_buy_position = 1/16
         if dp.stock_market_status == 0:
-            if dadieweizhidie:
+            if not can_buy_method_2:
                 method2_buy_position = 0
             elif not dp.big_fall_after_multi_bank_iron:
                 method2_buy_position = method2_buy_position/2
         if dp.stock_market_status == 1:
             method2_buy_position = 1/10
-            if dadieweizhidie:
+            if not can_buy_method_2:
                 method2_buy_position = 0
         if dp.stock_market_status == 2:
-            method2_buy_position = 1/4
-            if dadieweizhidie:
+            method2_buy_position = 1/6
+            if not can_buy_method_2:
                 method2_buy_position = 0
         logging.info('方式2买入仓位：'+str(method2_buy_position))
         if method2_buy_position>0:
