@@ -439,7 +439,7 @@ async def get_account(request, *, id):
                 if not stocks or len(stocks)!=1:
                     advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
                 else:
-                    stock_code = stocks[0].stock_code
+                    stock_code = stocks[0]['stock_code']
                     price = find_open_price_with_code(stock_code)
                     if not price:
                         price = get_current_price(stock_code, today())
