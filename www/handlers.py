@@ -412,16 +412,18 @@ async def get_account(request, *, id):
     if len(account_records)>0:
         # 当前仓位
         current_position = account_records[0].stock_position / 100
-        most_recent_account_record = account_records[0]    
+        most_recent_account_record = account_records[0]
+        stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
     if clear:
-        # TODO 非大牛市中的方式1的股票不清仓
-        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><br><small>勿急，收盘前清即可。</small></span>')
+        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>可以保留一支按方式一选出股票（1/6仓位以下）。<br>勿急，收盘前清即可。</small></span>')
+        if len(account_records)>0 and len(stocks)>0:
+            for stock in stocks:
+                advices.append('收盘前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
     else:
         if len(account_records)>0:
             if current_position >= max_position:
                 can_buy_method_1 = False
                 can_buy_method_2 = False
-            stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
             if len(stocks) > 0:
                 for stock in stocks:
                     d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days)
@@ -1704,7 +1706,6 @@ async def get_recommend(dp):
     #clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days
     logging.info('清仓：'+str(clear))
     if clear:
-         # TODO 非大牛市中的方式1的股票不清仓
         return '明日务必择机清仓！'
 
     dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
