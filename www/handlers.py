@@ -15,6 +15,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
+from handler_help import get_stock_method
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -418,7 +419,9 @@ async def get_account(request, *, id):
         advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>可以保留一支按方式一选出股票（不超过1/6仓位）。<br>勿急，收盘前清即可。</small></span>')
         if len(account_records)>0 and len(stocks)>0:
             for stock in stocks:
-                advices.append('收盘前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
+                stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
+                stock_method_str = stock_method if stock_method else ''
+                advices.append('收盘前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
     else:
         if len(account_records)>0:
             if current_position >= max_position:
@@ -426,12 +429,14 @@ async def get_account(request, *, id):
                 can_buy_method_2 = False
             if len(stocks) > 0:
                 for stock in stocks:
+                    stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
+                    stock_method_str = stock_method if stock_method else ''
                     d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days)
                     if d < datetime.datetime.today():
-                        advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
                     else:
                         d_str = d.strftime("%Y-%m-%d")
-                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
                 advices.append('<span style="color:Orange"><strong>若股票持有期间有过停牌，则按停牌日顺延</strong></span>')
         if not can_buy_method_1 and not can_buy_method_2:
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
@@ -440,30 +445,30 @@ async def get_account(request, *, id):
                 stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
                 if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
+                    advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
                 else:
                     stock_code = stocks[0]['stock_code']
                     price = find_open_price_with_code(stock_code)
                     if not price:
                         price = get_current_price(stock_code, today())
                     if price:
-                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
-                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
             elif can_buy_method_2 and dp[0].method_2:
                 stocks = get_stock_via_name(dp[0].method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
                 if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
+                    advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
                 else:
                     stock_code = stocks[0]['stock_code']
                     price = find_open_price_with_code(stock_code)
                     if not price:
                         price = get_current_price(stock_code, today())
                     if price:
-                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
-                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
+                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
 
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
