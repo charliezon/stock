@@ -29,7 +29,9 @@ function load_params(page) {
 
 {% block content %}
 
-    <a class="uk-button uk-button-success" href="/param_statistical">统计参数</a>
+    {% if __user__.admin and __user__.name != "charlie" %}
+        <a class="uk-button uk-button-success" href="/param_statistical">统计参数</a>
+    {% endif %}
     <a class="uk-button uk-button-success" href="/">返回首页</a>
 
     {% if params_amount>0 %}
