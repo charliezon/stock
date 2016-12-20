@@ -438,7 +438,7 @@ async def get_account(request, *, id):
                         d_str = d.strftime("%Y-%m-%d")
                         advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
                 advices.append('<span style="color:Orange"><strong>若股票持有期间有过停牌，则按停牌日顺延</strong></span>')
-        if not can_buy_method_1 and not can_buy_method_2:
+        if not ((can_buy_method_1 and dp[0].method_1) or (can_buy_method_2 and dp[0].method_2)):
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
         else:
             if can_buy_method_1 and dp[0].method_1:
@@ -1735,11 +1735,11 @@ async def get_recommend(dp):
     can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
     can_buy_method_2 = not cant_buy
 
-    if not can_buy_method_1 and not can_buy_method_2:
+    if not ((can_buy_method_1 and dp.method_1) or (can_buy_method_2 and dp.method_2)):
         return '明日不能买入！'
 
     # 方式1买入仓位
-    if dp.method_1:
+    if can_buy_method_1 and dp.method_1:
         method1_buy_position = 1/4
         if not cant_buy:
             if not dp.big_fall_after_multi_bank_iron:
@@ -1755,7 +1755,7 @@ async def get_recommend(dp):
         if method1_buy_position>0:
             return '明日以开盘价买入'+dp.method_1+str(round_float(method1_buy_position*100))+'%仓'
     # 方式2买入仓位
-    if dp.method_2:
+    if can_buy_method_2 and dp.method_2:
         method2_buy_position = 1/16
         if dp.stock_market_status == 0:
             if not can_buy_method_2:
