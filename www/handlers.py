@@ -429,9 +429,19 @@ async def get_account(request, *, id):
                 can_buy_method_2 = False
             if len(stocks) > 0:
                 for stock in stocks:
+                    d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days_method_2)
                     stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
-                    stock_method_str = stock_method if stock_method else ''
-                    d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days)
+                    if stock_method:
+                        if stock_method == 1:
+                            stock_method_str = '<span class="uk-badge">方式一</span>'
+                            d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days_method_1)
+                        elif stock_method == 2:
+                            stock_method_str = '<span class="uk-badge uk-badge-success">方式二</span>'
+                            d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days_method_2)
+                        else:
+                            stock_method_str = ''
+                    else:
+                        stock_method_str = ''
                     if d < datetime.datetime.today():
                         advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
                     else:
