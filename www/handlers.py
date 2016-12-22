@@ -221,7 +221,6 @@ async def find_account_record(account_id, date):
         if len(pre_account_records) <=0:
             raise APIPermissionError()
         try:
-            logging.info("-------------------------------1")
             account_record = AccountRecord(
                 date=date, 
                 account_id=account_id, 
@@ -266,7 +265,6 @@ async def find_account_record(account_id, date):
         except Error as e:
             raise APIPermissionError()
     else:
-        logging.info("-------------------------------2")
         account_record = all_account_records[0]
         stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
         if len(stocks) > 0:
@@ -330,7 +328,6 @@ async def get_account(request, *, id):
             dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
             if len(dp2)==0:
                 dadieweizhidie = True 
-        logging.info('大跌未止跌：'+str(dadieweizhidie))
         # 最大仓位
         max_position = 0
         if dp[0].stock_market_status == 0:
@@ -341,11 +338,9 @@ async def get_account(request, *, id):
             max_position = 1
             if dadieweizhidie or not dp[0].big_fall_after_multi_bank_iron:
                 max_position = 0.5
-        logging.info('最大仓位：'+str(max_position))
         # 清仓 - 恢复了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
         clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
         #clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days
-        logging.info('清仓：'+str(clear))
 
         dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
         flag1 = False
@@ -369,14 +364,6 @@ async def get_account(request, *, id):
         cant_buy = dadieweizhidie or flag1 or flag3
         can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
         can_buy_method_2 = not cant_buy
-        logging.info(str(dp[0].shanghai_break_twenty_days_line_for_two_days))
-        logging.info(str(dp[0].shenzhen_break_twenty_days_line_for_two_days))
-        logging.info(str(dadieweizhidie))
-        logging.info(str(dp[0].pursuit_stock_ratio))
-        logging.info(str(dp[0].strong_pursuit_stock_ratio))
-        logging.info(str(flag1))
-        logging.info(str(flag2))
-        logging.info('不能买：'+str(cant_buy))
 
         # 方式1买入仓位
         method1_buy_position = 1/4
@@ -390,7 +377,7 @@ async def get_account(request, *, id):
                 method1_buy_position = method1_buy_position/3
             else:
                 method1_buy_position = 0
-        logging.info('方式1买入仓位：'+str(method1_buy_position))
+
         # 方式2买入仓位
         method2_buy_position = 1/16
         if dp[0].stock_market_status == 0:
@@ -406,7 +393,6 @@ async def get_account(request, *, id):
             method2_buy_position = 1/6
             if not can_buy_method_2:
                 method2_buy_position = 0
-        logging.info('方式2买入仓位：'+str(method2_buy_position))
 
     advices = []
     current_position = 0
@@ -496,7 +482,6 @@ async def get_account(request, *, id):
     stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id])
 
     all_account_records_amount = len(account_records)
-    logging.info('--------------------------all_account_records_amount: '+str(all_account_records_amount))
     all_stock_trades_amount = len(stock_trades)
 
     return {
@@ -1402,44 +1387,38 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     date = date.strip()
     if date > today():
         raise APIValueError('date', '日期不能晚于今天')
-    logging.info('---------------'+str(date))
+
     try:
         shanghai_index = float(shanghai_index)
     except ValueError as e:
         raise APIValueError('shanghai_index', '沪指指数填写不正确')
     if shanghai_index <= 0:
         raise APIValueError('shanghai_index', '沪指指数必须大于0')
-    logging.info('---------------'+str(shanghai_index))
-    logging.info('---------------'+str(stock_market_status))
-    logging.info('---------------20 days line '+str(twenty_days_line))
+
     try:
         three_days_average_shanghai_increase = float(three_days_average_shanghai_increase)
     except ValueError as e:
         raise APIValueError('three_days_average_shanghai_increase', '沪指三天平均涨幅填写不正确')
-    logging.info('---------------'+str(three_days_average_shanghai_increase))
+
     try:
         increase_range = float(increase_range)
     except ValueError as e:
         raise APIValueError('increase_range', '沪指涨幅填写不正确')
-    logging.info('---------------'+str(increase_range))
-    logging.info('---------------shanghai_break_twenty_days_line  '+str(shanghai_break_twenty_days_line))
-    logging.info('---------------shanghai_break_twenty_days_line_for_two_days  '+str(shanghai_break_twenty_days_line_for_two_days))
-    logging.info('---------------shenzhen_break_twenty_days_line  '+str(shenzhen_break_twenty_days_line))
-    logging.info('---------------shenzhen_break_twenty_days_line_for_two_days  '+str(shenzhen_break_twenty_days_line_for_two_days))
+
     try:
         all_stock_amount = int(all_stock_amount)
     except ValueError as e:
         raise APIValueError('all_stock_amount', '总股票数填写不正确')
     if all_stock_amount<=0:
         raise APIValueError('all_stock_amount', '总股票数填写不正确')
-    logging.info('---------------all_stock_amount: '+str(all_stock_amount))
+
     try:
         buy_stock_amount = int(buy_stock_amount)
     except ValueError as e:
         raise APIValueError('buy_stock_amount', '发出买入信号的股票数填写不正确')
     if buy_stock_amount<0:
         raise APIValueError('buy_stock_amount', '发出买入信号的股票数填写不正确')
-    logging.info('---------------buy_stock_amount: '+str(buy_stock_amount))
+
     try:
         pursuit_stock_amount = int(pursuit_stock_amount)
     except ValueError as e:
@@ -1447,43 +1426,41 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     if pursuit_stock_amount<0:
         raise APIValueError('pursuit_stock_amount', '发出追涨信号的股票数填写不正确')
     pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount
-    logging.info('---------------pursuit_stock_amount: '+str(pursuit_stock_amount))
+
     try:
         iron_stock_amount = int(iron_stock_amount)
     except ValueError as e:
         raise APIValueError('iron_stock_amount', '发出买入或追涨信号的普钢股票数填写不正确')
     if iron_stock_amount<0:
         raise APIValueError('iron_stock_amount', '发出买入或追涨信号的普钢股票数填写不正确')
-    logging.info('---------------iron_stock_amount: '+str(iron_stock_amount))
+
     try:
         bank_stock_amount = int(bank_stock_amount)
     except ValueError as e:
         raise APIValueError('bank_stock_amount', '发出买入或追涨信号的银行股票数填写不正确')
     if bank_stock_amount<0:
         raise APIValueError('bank_stock_amount', '发出买入或追涨信号的银行股票数填写不正确')
-    logging.info('---------------bank_stock_amount: '+str(bank_stock_amount))
+
     try:
         strong_pursuit_stock_amount = int(strong_pursuit_stock_amount)
     except ValueError as e:
         raise APIValueError('strong_pursuit_stock_amount', '发出强烈追涨信号的股票数填写不正确')
     if strong_pursuit_stock_amount<0:
         raise APIValueError('strong_pursuit_stock_amount', '发出强烈追涨信号的股票数填写不正确')
-    logging.info('---------------strong_pursuit_stock_amount: '+str(strong_pursuit_stock_amount))
+
     try:
         pursuit_kdj_die_stock_amount = int(pursuit_kdj_die_stock_amount)
     except ValueError as e:
         raise APIValueError('pursuit_kdj_die_stock_amount', '发出追涨信号但KDJ死叉的股票数填写不正确')
     if pursuit_kdj_die_stock_amount<0:
         raise APIValueError('pursuit_kdj_die_stock_amount', '发出追涨信号但KDJ死叉的股票数填写不正确')
-    logging.info('---------------pursuit_kdj_die_stock_amount: '+str(pursuit_kdj_die_stock_amount))
+
     try:
         run_stock_amount = int(run_stock_amount)
     except ValueError as e:
         raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
     if run_stock_amount<0:
         raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
-    logging.info('---------------run_stock_amount: '+str(run_stock_amount))
-
 
     pursuit_kdj_die_stock_ratio = pursuit_kdj_die_stock_amount/pursuit_stock_amount if pursuit_stock_amount!=0 else 0
 
@@ -1712,7 +1689,6 @@ async def get_recommend(dp):
         dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
         if len(dp2)==0:
             dadieweizhidie = True 
-    logging.info('大跌未止跌：'+str(dadieweizhidie))
     # 最大仓位
     max_position = 0
     if dp.stock_market_status == 0:
@@ -1723,11 +1699,11 @@ async def get_recommend(dp):
         max_position = 1
         if dadieweizhidie or not dp.big_fall_after_multi_bank_iron:
             max_position = 0.5
-    logging.info('最大仓位：'+str(max_position))
+
     # 清仓 - 恢复了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
     clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
     #clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days
-    logging.info('清仓：'+str(clear))
+
     if clear:
         return '明日务必择机清仓！'
 
@@ -1769,7 +1745,7 @@ async def get_recommend(dp):
                 method1_buy_position = method1_buy_position/3
             else:
                 method1_buy_position = 0
-        logging.info('方式1买入仓位：'+str(method1_buy_position))
+
         if method1_buy_position>0:
             return '明日以开盘价买入'+dp.method_1+str(round_float(method1_buy_position*100))+'%仓'
     # 方式2买入仓位
@@ -1788,7 +1764,7 @@ async def get_recommend(dp):
             method2_buy_position = 1/6
             if not can_buy_method_2:
                 method2_buy_position = 0
-        logging.info('方式2买入仓位：'+str(method2_buy_position))
+
         if method2_buy_position>0:
             return '明日以开盘价买入'+dp.method_2+str(round_float(method2_buy_position*100))+'%仓'
     return '明日不能买入！'
