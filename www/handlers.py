@@ -420,7 +420,15 @@ async def get_account(request, *, id):
         if len(account_records)>0 and len(stocks)>0:
             for stock in stocks:
                 stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
-                stock_method_str = stock_method if stock_method else ''
+                if stock_method:
+                    if stock_method == 1:
+                        stock_method_str = '<span class="uk-badge">方式一</span>'
+                    elif stock_method == 2:
+                        stock_method_str = '<span class="uk-badge uk-badge-success">方式二</span>'
+                    else:
+                        stock_method_str = ''
+                else:
+                    stock_method_str = ''
                 advices.append('收盘前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
     else:
         if len(account_records)>0:
