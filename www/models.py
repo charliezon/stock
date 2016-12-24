@@ -147,6 +147,8 @@ class DailyParam(Model):
     pursuit_kdj_die_stock_ratio = FloatField() # 发出追涨信号但KDJ死叉的股票占总的追涨股票的比例
     run_stock_amount =  IntegerField()  # 沪深A股+创业板发出逃顶信号的股票数
     run_stock_ratio = FloatField() # 发出逃顶信号的股票比例
+    method2_bigger_9_amount = IntegerField()  # 沪深A股+创业板中涨幅大于9%的方式二的股票数
+    method2_bigger_9_ratio = FloatField() # 沪深A股+创业板中涨幅大于9%的方式二的股票比例
     big_fall_after_multi_bank_iron = BooleanField() # 当有多只普钢或银行股发出追涨信号后，是否大跌：False 否，True 是
     four_days_pursuit_ratio_decrease = BooleanField() # 近四日追涨比例突然变小：False 否，True 是
     too_big_increase = BooleanField() # True：追涨比例大于3%   False：others

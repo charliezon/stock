@@ -358,7 +358,7 @@ async def get_account(request, *, id):
                 flag2 = True
                 break
 
-        flag3 = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag2
+        flag3 = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or dp[0].method2_bigger_9_ratio>0.00155 or flag2
 
         # 不能买
         cant_buy = dadieweizhidie or dp[0].four_days_pursuit_ratio_decrease or flag1 or flag3
@@ -1340,6 +1340,7 @@ async def handle_param_statistical(request, date):
         dp.strong_pursuit_stock_amount = ''
         dp.pursuit_kdj_die_stock_amount = ''
         dp.run_stock_amount = ''
+        dp.method2_bigger_9_amount = ''
         dp.method_1 = ''
         dp.method_2 = ''
         dps = await DailyParam.findAll(orderBy='date desc', limit=1)
@@ -1376,7 +1377,7 @@ async def handle_param_statistical(request, date):
 async def api_param_statistical(request, *, date, shanghai_index, stock_market_status, twenty_days_line, increase_range, three_days_average_shanghai_increase, 
                                 shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_obviously, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line, shenzhen_break_twenty_days_line_obviously,
                                 shenzhen_break_twenty_days_line_for_two_days, all_stock_amount, buy_stock_amount, pursuit_stock_amount,
-                                iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount,
+                                iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount, method2_bigger_9_amount,
                                 futures, method_1, method_2):
     must_log_in(request)
     check_admin(request)
@@ -1462,6 +1463,13 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     if run_stock_amount<0:
         raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
 
+    try:
+        method2_bigger_9_amount = int(method2_bigger_9_amount)
+    except ValueError as e:
+        raise APIValueError('method2_bigger_9_amount', '方式二涨幅大于9%股票数填写不正确')
+    if method2_bigger_9_amount<0:
+        raise APIValueError('method2_bigger_9_amount', '方式二涨幅大于9%股票数填写不正确')
+
     pursuit_kdj_die_stock_ratio = pursuit_kdj_die_stock_amount/pursuit_stock_amount if pursuit_stock_amount!=0 else 0
 
     big_fall_after_multi_bank_iron = True
@@ -1506,6 +1514,8 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         dp.pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio
         dp.run_stock_amount=run_stock_amount
         dp.run_stock_ratio=run_stock_amount/all_stock_amount
+        dp.method2_bigger_9_amount=method2_bigger_9_amount
+        dp.method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount
         dp.big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron
         dp.four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease
         dp.too_big_increase=(pursuit_stock_ratio>=0.03)
@@ -1539,6 +1549,8 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                         pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
                         run_stock_amount=run_stock_amount,
                         run_stock_ratio=run_stock_amount/all_stock_amount,
+                        method2_bigger_9_amount=method2_bigger_9_amount,
+                        method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount,
                         big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
                         four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
                         too_big_increase=(pursuit_stock_ratio>=0.03),
@@ -1624,6 +1636,11 @@ async def get_params(request, *, page):
                 dp.run_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.run_stock_amount)+'</span>'
             else:
                 dp.run_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.run_stock_amount)+'</span>'
+
+            if dp.method2_bigger_9_ratio > 0.00155:
+                dp.method2_bigger_9_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.method2_bigger_9_amount)+'</span>'
+            else:
+                dp.method2_bigger_9_amount = '<span class="uk-badge uk-badge-success">'+str(dp.method2_bigger_9_amount)+'</span>'
 
             if dp.iron_stock_amount >= 2:
                 dp.iron_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.iron_stock_amount)+'</span>'
@@ -1723,7 +1740,7 @@ async def get_recommend(dp):
             flag2 = True
             break
 
-    flag3 = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag2
+    flag3 = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or dp.method2_bigger_9_ratio>0.00155 or flag2
     # 不能买
     cant_buy = dadieweizhidie or dp.four_days_pursuit_ratio_decrease or flag1 or flag3
     can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)

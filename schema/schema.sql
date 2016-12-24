@@ -120,6 +120,8 @@ create table daily_params (
     `pursuit_kdj_die_stock_ratio` real not null,
     `run_stock_amount` int(100) not null,
     `run_stock_ratio` real not null,
+    `method2_bigger_9_amount` int(100) not null,
+    `method2_bigger_9_ratio` real not null,
     `big_fall_after_multi_bank_iron` bool null,
     `four_days_pursuit_ratio_decrease` bool null,
     `too_big_increase` bool null,
