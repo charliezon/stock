@@ -361,7 +361,7 @@ async def get_account(request, *, id):
         flag3 = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or flag2
 
         # 不能买
-        cant_buy = dadieweizhidie or flag1 or flag3
+        cant_buy = dadieweizhidie or dp[0].four_days_pursuit_ratio_decrease or flag1 or flag3
         can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
         can_buy_method_2 = not cant_buy
 
@@ -1725,7 +1725,7 @@ async def get_recommend(dp):
 
     flag3 = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or flag2
     # 不能买
-    cant_buy = dadieweizhidie or flag1 or flag3
+    cant_buy = dadieweizhidie or dp.four_days_pursuit_ratio_decrease or flag1 or flag3
     can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
     can_buy_method_2 = not cant_buy
 
