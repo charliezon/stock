@@ -1482,9 +1482,9 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
             big_fall_after_multi_bank_iron = True
 
     four_days_pursuit_ratio_decrease = False
-    dps3 = await DailyParam.findAll('date<=?', [date], orderBy='date desc', limit=3)
-    if len(dps3) == 3:
-        if (dps3[2].pursuit_stock_ratio >= 0.032 and dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio < 0.032) or (dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio >= 0.032 and pursuit_stock_ratio<0.032):
+    dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=2)
+    if len(dps3) == 2:
+        if dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio >= 0.032 and pursuit_stock_ratio<0.032:
             four_days_pursuit_ratio_decrease = True
 
     dp = await DailyParam.find(date)
