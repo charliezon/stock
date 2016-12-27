@@ -321,6 +321,7 @@ async def get_account(request, *, id):
     most_recent_account_record = False
 
     clear = False
+    max_position = 0
     dp = await DailyParam.findAll(orderBy='date desc', limit=1)
     if len(dp)>0:
         dadieweizhidie = False
@@ -330,7 +331,6 @@ async def get_account(request, *, id):
             if len(dp2)==0:
                 dadieweizhidie = True 
         # 最大仓位
-        max_position = 0
         if dp[0].stock_market_status == 0:
             max_position = 0.25
             if not dp[0].big_fall_after_multi_bank_iron:
