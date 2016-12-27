@@ -320,6 +320,7 @@ async def get_account(request, *, id):
     account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
 
+    clear = False
     dp = await DailyParam.findAll(orderBy='date desc', limit=1)
     if len(dp)>0:
         dadieweizhidie = False
@@ -442,10 +443,10 @@ async def get_account(request, *, id):
                         d_str = d.strftime("%Y-%m-%d")
                         advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
                 advices[-1] = advices[-1] + '<br><span style="color:Orange"><strong>若股票持有期间有过停牌，则按停牌日顺延</strong></span>'
-        if not ((can_buy_method_1 and dp[0].method_1) or (can_buy_method_2 and dp[0].method_2)):
+        if not ((can_buy_method_1 and len(dp)>0 and dp[0].method_1) or (can_buy_method_2 and len(dp)>0 and dp[0].method_2)):
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
         else:
-            if can_buy_method_1 and dp[0].method_1:
+            if can_buy_method_1 and len(dp)>0 and dp[0].method_1:
                 stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
                 if not stocks or len(stocks)!=1:
@@ -459,7 +460,7 @@ async def get_account(request, *, id):
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
-            elif can_buy_method_2 and dp[0].method_2:
+            elif can_buy_method_2 and len(dp)>0 and dp[0].method_2:
                 stocks = get_stock_via_name(dp[0].method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
                 if not stocks or len(stocks)!=1:
