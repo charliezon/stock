@@ -1478,9 +1478,15 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     if len(dps1)>0:
         dps2 = await DailyParam.findAll('date>? and increase_range<=?', [dps1[0].date, -0.015])
         if len(dps2) == 0:
-            big_fall_after_multi_bank_iron = False
+            if increase_range <= -0.015:
+                big_fall_after_multi_bank_iron = True
+            else:
+                big_fall_after_multi_bank_iron = False
         else:
             big_fall_after_multi_bank_iron = True
+
+    if iron_stock_amount>1 or bank_stock_amount>1:
+        big_fall_after_multi_bank_iron = False
 
     four_days_pursuit_ratio_decrease = False
     dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=2)
