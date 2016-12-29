@@ -1487,6 +1487,7 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
 
     if iron_stock_amount>1 or bank_stock_amount>1:
         big_fall_after_multi_bank_iron = False
+    logging.info('---------------------'+str(big_fall_after_multi_bank_iron))
 
     four_days_pursuit_ratio_decrease = False
     dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=2)
