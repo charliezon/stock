@@ -1485,9 +1485,6 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         else:
             big_fall_after_multi_bank_iron = True
 
-    logging.info('-------------------------------------'+date)
-    logging.info('-------------------------------------'+str(big_fall_after_multi_bank_iron))
-
     if iron_stock_amount>1 or bank_stock_amount>1:
         big_fall_after_multi_bank_iron = False
 
