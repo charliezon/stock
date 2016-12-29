@@ -1474,7 +1474,7 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     pursuit_kdj_die_stock_ratio = pursuit_kdj_die_stock_amount/pursuit_stock_amount if pursuit_stock_amount!=0 else 0
 
     big_fall_after_multi_bank_iron = True
-    dps1 = await DailyParam.findAll('iron_stock_amount>? or bank_stock_amount>? and date<=?', [1, 1, date], orderBy='date desc', limit=1)
+    dps1 = await DailyParam.findAll('(iron_stock_amount>? or bank_stock_amount>?) and date<=?', [1, 1, date], orderBy='date desc', limit=1)
     if len(dps1)>0:
         dps2 = await DailyParam.findAll('date>? and date<=? and increase_range<=?', [dps1[0].date, date, -0.015])
         if len(dps2) == 0:
@@ -1485,9 +1485,11 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         else:
             big_fall_after_multi_bank_iron = True
 
+    logging.info('-------------------------------------'+date)
+    logging.info('-------------------------------------'+str(big_fall_after_multi_bank_iron))
+
     if iron_stock_amount>1 or bank_stock_amount>1:
         big_fall_after_multi_bank_iron = False
-    logging.info('---------------------'+str(big_fall_after_multi_bank_iron))
 
     four_days_pursuit_ratio_decrease = False
     dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=2)
