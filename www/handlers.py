@@ -473,7 +473,9 @@ async def get_account(request, *, id):
                     if not price:
                         price = get_current_price(stock_code, today())
                     if price:
-                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        amount = int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100)
+                        if amount>0:
+                            advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(amount)+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
     advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span>只牛市买！')
