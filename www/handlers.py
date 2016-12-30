@@ -457,7 +457,9 @@ async def get_account(request, *, id):
                     if not price:
                         price = get_current_price(stock_code, today())
                     if price:
-                        advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
+                        amount = int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100)
+                        if amount>0:
+                            advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(amount)+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
             elif can_buy_method_2 and len(dp)>0 and dp[0].method_2:
