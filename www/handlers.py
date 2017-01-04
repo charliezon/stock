@@ -478,7 +478,7 @@ async def get_account(request, *, id):
                             advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(amount)+'股')
                     else:
                         advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
-    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span>只牛市买！')
+    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆可买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span><span class="uk-badge uk-badge-success">方式二</span>只能牛市买，<span class="uk-badge">方式一</span>牛熊皆可买')
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
