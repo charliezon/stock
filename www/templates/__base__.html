@@ -25,9 +25,10 @@
             <a href="/" class="uk-navbar-brand">Stock</a>
             {% if __user__ %}
                 <ul class="uk-navbar-nav">
+                    <li><a href="/"><i class="uk-icon-home"></i> 首页</a></li>
                     {% if accounts %}
                     <li class="uk-parent" data-uk-dropdown>
-                        <a href="#0"><i class="uk-icon-book"></i> 切换账户</a>
+                        <a href="#0"><i class="uk-icon-exchange"></i> 切换账户</a>
                         <div class="uk-dropdown uk-dropdown-navbar">
                             <ul class="uk-nav uk-nav-navbar">
                                 {% for acc in accounts %}
@@ -42,7 +43,10 @@
                     {% endif %}
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}
-                        <li><a href="/params"><i class="uk-icon-pencil-square"></i> 参数统计</a></li>
+                        <li><a href="/params"><i class="uk-icon-list"></i> 历史参数</a></li>
+                    {% endif %}
+                    {% if __user__.admin and  __user__.name != "charlie" %}
+                        <li><a href="/param_statistical"><i class="uk-icon-pencil-square"></i> 统计参数</a></li>
                     {% endif %}
                 </ul>
             {% endif %}
@@ -81,7 +85,7 @@
     <div class="uk-margin-large-top" style="background-color:#eee; border-top:1px solid #ccc;">
         <div class="uk-container uk-container-center uk-text-center">
             <div class="uk-panel uk-margin-top uk-margin-bottom">
-                <p>Powered by <a href="http://stock.charliezon.com">Stock Charliezon</a>. Copyright &copy; 2016. </p>
+                <p>Powered by <a href="http://stock.charliezon.com">Stock Charliezon</a>. Copyright &copy; 2016-2017. </p>
                 <p><a href="http://www.charliezon.com/" target="_blank">www.charliezon.com</a>. All rights reserved.</p>
             </div>
 

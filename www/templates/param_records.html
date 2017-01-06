@@ -3,12 +3,12 @@
         <thead>
             <tr>
                 <th>日期</th>
+                <th>操作建议</th>
                 <th>沪指</th>
                 <th>大盘</th>
                 <th>跌破20日线</th>
                 <th>涨幅</th>
                 <th>3日平均涨幅</th>
-                <th>股票总数</th>
                 <th>买入数</th>
                 <th>追涨数</th>
                 <th>追涨普钢数</th>
@@ -16,33 +16,37 @@
                 <th>强烈追涨数</th>
                 <th>追涨KDJ死叉数</th>
                 <th>逃顶数</th>
+                <th>方式二涨幅大于9%数</th>
                 <th>是否已大跌</th>
                 <th>追涨突然变小</th>
-                <th>方式一选股</th>
                 <th>方式二选股</th>
+                <th>方式一选股</th>
+                <th>股票总数</th>
             </tr>
         </thead>
         <tbody>
             {% for dp in dps %}
                 <tr>
-                    <td>{{dp.date}} <a class="uk-button uk-button-danger" href="/param_statistical/{{dp.date}}">修改</a></td>
-                    <td>{{dp.shanghai_index}}</td>
+                    <td>{{dp.date}} {% if __user__.admin and __user__.name != "charlie" %}<a class="uk-button-small" href="/param_statistical/{{dp.date}}"><i class="uk-icon-edit"></i></a>{% endif %}</td>
+                    <td><small>{{dp.recommendation|safe}}</small></td>
+                    <td>{{dp.shanghai_index|safe}}</td>
                     <td>{{dp.stock_market_status|safe}}</td>
                     <td>{{dp.twenty_days_line|safe}}</td>
-                    <td>{{dp.increase_range}}</td>
-                    <td>{{dp.three_days_average_shanghai_increase}}</td>
-                    <td>{{dp.all_stock_amount}}</td>
-                    <td>{{dp.buy_stock_amount}}</td>
-                    <td>{{dp.pursuit_stock_amount}}</td>
-                    <td>{{dp.iron_stock_amount}}</td>
-                    <td>{{dp.bank_stock_amount}}</td>
-                    <td>{{dp.strong_pursuit_stock_amount}}</td>
-                    <td>{{dp.pursuit_kdj_die_stock_amount}}</td>
-                    <td>{{dp.run_stock_amount}}</td>
+                    <td>{{dp.increase_range|safe}}</td>
+                    <td>{{dp.three_days_average_shanghai_increase|safe}}</td>
+                    <td>{{dp.buy_stock_amount|safe}}</td>
+                    <td>{{dp.pursuit_stock_amount|safe}}</td>
+                    <td>{{dp.iron_stock_amount|safe}}</td>
+                    <td>{{dp.bank_stock_amount|safe}}</td>
+                    <td>{{dp.strong_pursuit_stock_amount|safe}}</td>
+                    <td>{{dp.pursuit_kdj_die_stock_amount|safe}}</td>
+                    <td>{{dp.run_stock_amount|safe}}</td>
+                    <td>{{dp.method2_bigger_9_amount|safe}}</td>
                     <td>{{dp.big_fall_after_multi_bank_iron|safe}}</td>
                     <td>{{dp.four_days_pursuit_ratio_decrease|safe}}</td>
-                    <td>{{dp.method_1}}</td>
                     <td>{{dp.method_2}}</td>
+                    <td>{{dp.method_1}}</td>
+                    <td>{{dp.all_stock_amount}}</td>
                 </tr>
             {% endfor %}
         </tbody>

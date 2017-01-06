@@ -11,8 +11,35 @@
 
 {% block content %}
 
-<p>
-这是一个能够帮您记录每日操作、资金、利润变化等信息，并向您提出下一日的操作建议的网站。
-您必须先<a href="/register">注册</a>或<a href="/signin">登录</a>，才能使用这些功能。
-</p>
+
+<!-- div start -->
+<div class="uk-container uk-container-center uk-margin-top uk-margin-large-bottom">
+<div class="uk-grid" data-uk-grid-margin="">
+
+                <div class="uk-width-medium-1-2 uk-row-first">
+                    <img src="/static/images/happynewyear.jpg" alt="" width="660" height="400">
+                </div>
+
+                <div class="uk-width-medium-1-2">
+                    <h2>关于我们</h2>
+                    <p>
+					这是一个能够根据每天股市行情提供操作建议的网站。<span class="uk-badge uk-badge-danger">股市有风险，投资须谨慎！</span>
+					</p>
+
+					<p>
+					你只要在此记录每日操作等信息，它便能为你提供下一个交易日的操作建议。
+					但你需要先<a href="/register">注册</a>或<a href="/signin">登录</a>，才能使用这些功能。
+					</p>
+                    <h2>关于注册</h2>
+                    <p>抱歉，暂时不开放注册。对此感兴趣的朋友请发邮件至：<a href="mailto:charliezon@foxmail.com?Subject=注册Stock">charliezon@foxmail.com</a></p>
+                    <a class="uk-button uk-button-primary" href="/register">注 册</a>
+                    <a class="uk-button uk-button-success" href="/signin">登 录</a>
+
+                </div>
+
+            </div>
+
+</div>
+<!-- div end -->
+
 {% endblock %}

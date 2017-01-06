@@ -3,3 +3,7 @@ mysql -h mysql -uroot -p < schema.sql
 mysqldump -u root -p stock > stock-20161116.sql
 
 mysqldump -u root -p stock > stock-20161126.sql
+
+mysqldump -h mysql -u root -p stock > stock-20161205.sql
+
+mysql -h mysql -uroot -p < stock-20161205-1.sql

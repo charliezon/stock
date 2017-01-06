@@ -15,6 +15,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
+from handler_help import get_stock_method
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -319,6 +320,8 @@ async def get_account(request, *, id):
     account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
 
+    clear = False
+    max_position = 0
     dp = await DailyParam.findAll(orderBy='date desc', limit=1)
     if len(dp)>0:
         dadieweizhidie = False
@@ -328,7 +331,6 @@ async def get_account(request, *, id):
             if len(dp2)==0:
                 dadieweizhidie = True 
         # 最大仓位
-        max_position = 0
         if dp[0].stock_market_status == 0:
             max_position = 0.25
             if not dp[0].big_fall_after_multi_bank_iron:
@@ -337,98 +339,155 @@ async def get_account(request, *, id):
             max_position = 1
             if dadieweizhidie or not dp[0].big_fall_after_multi_bank_iron:
                 max_position = 0.5
-        # 清仓
-        clear = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        # 清仓 - 恢复了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
+        clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
+        #clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days
 
-        dp3 = await DailyParam.findAll('run_stock_ratio>?', [0.02484], orderBy='date desc', limit=5)
-        dp4 = await DailyParam.findAll('pursuit_kdj_die_stock_ratio>=?', [0.5], orderBy='date desc', limit=2)
+        dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
+        flag1 = False
+        for d in dp3:
+            # TODO 比较下面三个条件哪个好
+            # if d.run_stock_ratio > 0.02484:
+            #if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio<0.03:
+            if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
+                flag1 = True
+                break
+        dp4 = await DailyParam.findAll(orderBy='date desc', limit=2)
+        flag2 = False
+        for d in dp4:
+            if d.pursuit_kdj_die_stock_ratio>=0.5:
+                flag2 = True
+                break
+
+        flag3 = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or (dp[0].stock_market_status==0 and dp[0].method2_bigger_9_ratio>0.00155) or flag2
 
         # 不能买
-        cant_buy = dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or dadieweizhidie or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or len(dp3)>0 or len(dp4)>0
-        
+        cant_buy = dadieweizhidie or dp[0].four_days_pursuit_ratio_decrease or flag1 or flag3
+        can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
+        can_buy_method_2 = not cant_buy
+
         # 方式1买入仓位
         method1_buy_position = 1/4
-        if dp[0].stock_market_status == 0:
-            if dadieweizhidie:
-                method1_buy_position = method1_buy_position/4
-            elif not dp[0].big_fall_after_multi_bank_iron:
+        if not cant_buy:
+            if not dp[0].big_fall_after_multi_bank_iron:
                 method1_buy_position = method1_buy_position/2
-        if dp[0].stock_market_status == 1:
-            if dadieweizhidie:
+        else:
+            if can_buy_method_1 and dadieweizhidie:
                 method1_buy_position = method1_buy_position/4
-        if dp[0].stock_market_status == 2:
-            if dadieweizhidie:
-                method1_buy_position = method1_buy_position/4
+            elif can_buy_method_1:
+                method1_buy_position = method1_buy_position/3
+            else:
+                method1_buy_position = 0
+
         # 方式2买入仓位
         method2_buy_position = 1/16
         if dp[0].stock_market_status == 0:
-            if dadieweizhidie:
+            if not can_buy_method_2:
                 method2_buy_position = 0
             elif not dp[0].big_fall_after_multi_bank_iron:
                 method2_buy_position = method2_buy_position/2
         if dp[0].stock_market_status == 1:
-            if dadieweizhidie:
+            method2_buy_position = 1/10
+            if not can_buy_method_2:
                 method2_buy_position = 0
         if dp[0].stock_market_status == 2:
-            method2_buy_position = 1/4
-            if dadieweizhidie:
+            method2_buy_position = 1/6
+            if not can_buy_method_2:
                 method2_buy_position = 0
 
     advices = []
-    
+    current_position = 0
+    if len(account_records)>0:
+        # 当前仓位
+        current_position = account_records[0].stock_position / 100
+        most_recent_account_record = account_records[0]
+        stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
     if clear:
-        advices.append('<span style="color:red"><strong>今日务必择机清仓</strong></span>')
+        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>但可以保留一支按<span class="uk-badge">方式一</span>选出的股票【不能超过总仓位的'+str(round_float(1/6*100))+'%】。<br>勿急，收盘前清即可。</small></span>')
+        if len(account_records)>0 and len(stocks)>0:
+            for stock in stocks:
+                stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
+                if stock_method:
+                    if stock_method == 1:
+                        stock_method_str = '<span class="uk-badge">方式一</span>'
+                    elif stock_method == 2:
+                        stock_method_str = '<span class="uk-badge uk-badge-success">方式二</span>'
+                    else:
+                        stock_method_str = ''
+                else:
+                    stock_method_str = ''
+                advices.append('收盘前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
     else:
-        current_position = 0
+        has_method_1 = False
         if len(account_records)>0:
-            most_recent_account_record = account_records[0]
-            # 当前仓位
-            current_position = most_recent_account_record.stock_position
             if current_position >= max_position:
-                cant_buy = True
-            stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
+                can_buy_method_2 = False
             if len(stocks) > 0:
                 for stock in stocks:
-                    d = convert_date(stock.stock_buy_date) + timedelta(days=31)
+                    d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days_method_2)
+                    stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
+                    if stock_method:
+                        if stock_method == 1:
+                            has_method_1 = True
+                            stock_method_str = '<span class="uk-badge">方式一</span>'
+                            d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days_method_1)
+                        elif stock_method == 2:
+                            stock_method_str = '<span class="uk-badge uk-badge-success">方式二</span>'
+                            d = convert_date(stock.stock_buy_date) + timedelta(days=configs.stock.max_stock_hold_days_method_2)
+                        else:
+                            stock_method_str = ''
+                    else:
+                        stock_method_str = ''
                     if d < datetime.datetime.today():
-                        advices.append('收盘前卖出'+stock.stock_name+str(stock.stock_amount)+'股')
+                        advices.append('收盘前<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
                     else:
                         d_str = d.strftime("%Y-%m-%d")
-                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元卖出'+stock.stock_name+str(stock.stock_amount)+'股')
-        if not cant_buy:
-            if dp.method_1:
-                stocks = get_stock_via_name(dp.method_1)
+                        advices.append(d_str+'前以'+str(stock.stock_sell_price)+'元<span class="uk-badge uk-badge-danger">卖出</span>'+stock_method_str+stock.stock_name+str(stock.stock_amount)+'股')
+                advices[-1] = advices[-1] + '<br><span style="color:Orange"><strong>若股票持有期间有过停牌，则按停牌日顺延</strong></span>'
+        if not ((can_buy_method_1 and len(dp)>0 and dp[0].method_1) or (can_buy_method_2 and len(dp)>0 and dp[0].method_2)):
+            advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
+        else:
+            if can_buy_method_1 and len(dp)>0 and dp[0].method_1:
+                stocks = get_stock_via_name(dp[0].method_1)
                 buy_position = max_position - current_position if method1_buy_position>max_position - current_position else method1_buy_position
-                if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
-                else:
-                    stock_code = stocks[0].stock_code
-                    price = 0
-                    if most_recent_account_record.date == today():
+                # 如果可买仓位已满，那么检查是否持有方式一的股票，如果已经持有，那么不能买，否则可以买
+                if buy_position>0 or not has_method_1:
+                    buy_position = method1_buy_position
+                    if not stocks or len(stocks)!=1:
+                        amount = int(round_float(buy_position*100))
+                        if amount>0:
+                            advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(amount)+'%仓')
+                    else:
+                        stock_code = stocks[0]['stock_code']
                         price = find_open_price_with_code(stock_code)
-                    else:
-                        price = get_current_price(stock_code)
-                    if price:
-                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp.method_1+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
-                    else:
-                        advices.append('以开盘价买入'+dp.method_1+str(round_float(buy_position*100))+'%仓')
-            elif dp.method_2:
-                stocks = get_stock_via_name(dp.method_2)
+                        if not price:
+                            price = get_current_price(stock_code, today())
+                        if price:
+                            amount = int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100)
+                            if amount>0:
+                                advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(amount)+'股')
+                        else:
+                            advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge">方式一</span>'+dp[0].method_1+str(round_float(buy_position*100))+'%仓')
+            elif can_buy_method_2 and len(dp)>0 and dp[0].method_2:
+                stocks = get_stock_via_name(dp[0].method_2)
                 buy_position = max_position - current_position if method2_buy_position>max_position - current_position else method2_buy_position
-                if not stocks or len(stocks)!=1:
-                    advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
-                else:
-                    stock_code = stocks[0].stock_code
-                    price = 0
-                    if most_recent_account_record.date == today():
+                if buy_position>0:
+                    if not stocks or len(stocks)!=1:
+                        amount = int(round_float(buy_position*100))
+                        if amount>0:
+                            advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(amount)+'%仓')
+                    else:
+                        stock_code = stocks[0]['stock_code']
                         price = find_open_price_with_code(stock_code)
-                    else:
-                        price = get_current_price(stock_code)
-                    if price:
-                        advices.append('以开盘价'+str(round_float(price))+'买入'+dp.method_2+str(int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100))+'股')
-                    else:
-                        advices.append('以开盘价买入'+dp.method_2+str(round_float(buy_position*100))+'%仓')
-
+                        if not price:
+                            price = get_current_price(stock_code, today())
+                        if price:
+                            amount = int(round_float(most_recent_account_record.total_assets*buy_position/price/100, 0)*100)
+                            if amount>0:
+                                advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(amount)+'股')
+                        else:
+                            advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
+    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆可买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span><span class="uk-badge uk-badge-success">方式二</span>只能牛市买，<span class="uk-badge">方式一</span>牛熊皆可买')
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
@@ -494,11 +553,14 @@ async def get_account_records(request, *, account_id, page):
             account_record.stock_market_status = '-'
             if dp:
                 if dp.stock_market_status == 0:
-                    account_record.stock_market_status = '熊市'
+                    if dp.twenty_days_line:
+                        account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-success">沪20上</span>'
+                    else:
+                        account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-danger">沪20下</span>'
                 elif dp.stock_market_status == 1:
-                    account_record.stock_market_status = '小牛市'
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛</span>'
                 else:
-                    account_record.stock_market_status = '大牛市'
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛</span>'
     return {
         '__template__': 'account_records.html',
         'account_records': account_records
@@ -549,13 +611,17 @@ async def get_account_record(request, *, account_id, date, stock_amount):
             account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
         dp = await DailyParam.find(account_record.date)
         account_record.stock_market_status = '-'
+
         if dp:
             if dp.stock_market_status == 0:
-                account_record.stock_market_status = '熊市'
+                if dp.twenty_days_line:
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-success">沪20上</span>'
+                else:
+                    account_record.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-danger">沪20下</span>'
             elif dp.stock_market_status == 1:
-                account_record.stock_market_status = '小牛市'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛</span>'
             else:
-                account_record.stock_market_status = '大牛市'
+                account_record.stock_market_status = '<span class="uk-badge uk-badge-success">大牛</span>'
     else:
         raise APIPermissionError()
     return {
@@ -699,7 +765,7 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
     try:
-        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=initial_funding, total_stock_value=0, total_assets=initial_funding, float_profit_lost=0, total_profit=0, principle=initial_funding)
+        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=round_float(initial_funding), total_stock_value=0, total_assets=round_float(initial_funding), float_profit_lost=0, total_profit=0, principle=round_float(initial_funding))
         await account_record.save()
     except Error as e:
         account.remove()
@@ -746,7 +812,16 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
     account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
     await account.save()
     try:
-        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=initial_security_funding, bank_funding=initial_bank_funding, total_stock_value=0, total_assets=initial_security_funding+initial_bank_funding, float_profit_lost=0, total_profit=initial_security_funding+initial_bank_funding-initial_funding, principle=initial_funding)
+        account_record = AccountRecord(date=date, 
+                                        account_id=account.id, 
+                                        stock_position=0, 
+                                        security_funding=round_float(initial_security_funding), 
+                                        bank_funding=round_float(initial_bank_funding), 
+                                        total_stock_value=0, 
+                                        total_assets=round_float(initial_security_funding+initial_bank_funding), 
+                                        float_profit_lost=0, 
+                                        total_profit=round_float(initial_security_funding+initial_bank_funding-initial_funding), 
+                                        principle=round_float(initial_funding))
         await account_record.save()
     except Error as e:
         account.remove()
@@ -829,7 +904,6 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
         exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
         exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
         exist_stocks[0].stock_sell_price = sell_price
-        exist_stocks[0].stock_buy_date = date
         exist_stocks[0].stock_current_price=current_price
         await exist_stocks[0].update()
     else:
@@ -1260,8 +1334,10 @@ async def handle_param_statistical(request, date):
     if dp:
         dp.twenty_days_line = int(dp.twenty_days_line)
         dp.shanghai_break_twenty_days_line = int(dp.shanghai_break_twenty_days_line)
+        dp.shanghai_break_twenty_days_line_obviously = int(dp.shanghai_break_twenty_days_line_obviously)
         dp.shanghai_break_twenty_days_line_for_two_days = int(dp.shanghai_break_twenty_days_line_for_two_days)
         dp.shenzhen_break_twenty_days_line = int(dp.shenzhen_break_twenty_days_line)
+        dp.shenzhen_break_twenty_days_line_obviously = int(dp.shenzhen_break_twenty_days_line_obviously)
         dp.shenzhen_break_twenty_days_line_for_two_days = int(dp.shenzhen_break_twenty_days_line_for_two_days)        
 
     if not dp:
@@ -1278,6 +1354,7 @@ async def handle_param_statistical(request, date):
         dp.strong_pursuit_stock_amount = ''
         dp.pursuit_kdj_die_stock_amount = ''
         dp.run_stock_amount = ''
+        dp.method2_bigger_9_amount = ''
         dp.method_1 = ''
         dp.method_2 = ''
         dps = await DailyParam.findAll(orderBy='date desc', limit=1)
@@ -1287,16 +1364,20 @@ async def handle_param_statistical(request, date):
             dp.stock_market_status = dps[0].stock_market_status
             dp.twenty_days_line = int(dps[0].twenty_days_line)
             dp.shanghai_break_twenty_days_line = int(dps[0].shanghai_break_twenty_days_line)
+            dp.shanghai_break_twenty_days_line_obviously = int(dps[0].shanghai_break_twenty_days_line_obviously)
             dp.shanghai_break_twenty_days_line_for_two_days = int(dps[0].shanghai_break_twenty_days_line_for_two_days)
             dp.shenzhen_break_twenty_days_line = int(dps[0].shenzhen_break_twenty_days_line)
+            dp.shenzhen_break_twenty_days_line_obviously = int(dps[0].shenzhen_break_twenty_days_line_obviously)
             dp.shenzhen_break_twenty_days_line_for_two_days = int(dps[0].shenzhen_break_twenty_days_line_for_two_days)
         else:
             dp.futures = ''
             dp.stock_market_status = 0
             dp.twenty_days_line = 0
             dp.shanghai_break_twenty_days_line = 0
+            dp.shanghai_break_twenty_days_line_obviously = 0
             dp.shanghai_break_twenty_days_line_for_two_days = 0
             dp.shenzhen_break_twenty_days_line = 0
+            dp.shenzhen_break_twenty_days_line_obviously = 0
             dp.shenzhen_break_twenty_days_line_for_two_days = 0
     return {
         '__template__': 'param_statistical.html',
@@ -1308,9 +1389,9 @@ async def handle_param_statistical(request, date):
 @asyncio.coroutine
 @post('/api/param_statistical')
 async def api_param_statistical(request, *, date, shanghai_index, stock_market_status, twenty_days_line, increase_range, three_days_average_shanghai_increase, 
-                                shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line,
+                                shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_obviously, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line, shenzhen_break_twenty_days_line_obviously,
                                 shenzhen_break_twenty_days_line_for_two_days, all_stock_amount, buy_stock_amount, pursuit_stock_amount,
-                                iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount,
+                                iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount, method2_bigger_9_amount,
                                 futures, method_1, method_2):
     must_log_in(request)
     check_admin(request)
@@ -1321,44 +1402,38 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     date = date.strip()
     if date > today():
         raise APIValueError('date', '日期不能晚于今天')
-    logging.info('---------------'+str(date))
+
     try:
         shanghai_index = float(shanghai_index)
     except ValueError as e:
         raise APIValueError('shanghai_index', '沪指指数填写不正确')
     if shanghai_index <= 0:
         raise APIValueError('shanghai_index', '沪指指数必须大于0')
-    logging.info('---------------'+str(shanghai_index))
-    logging.info('---------------'+str(stock_market_status))
-    logging.info('---------------20 days line '+str(twenty_days_line))
+
     try:
         three_days_average_shanghai_increase = float(three_days_average_shanghai_increase)
     except ValueError as e:
         raise APIValueError('three_days_average_shanghai_increase', '沪指三天平均涨幅填写不正确')
-    logging.info('---------------'+str(three_days_average_shanghai_increase))
+
     try:
         increase_range = float(increase_range)
     except ValueError as e:
         raise APIValueError('increase_range', '沪指涨幅填写不正确')
-    logging.info('---------------'+str(increase_range))
-    logging.info('---------------shanghai_break_twenty_days_line  '+str(shanghai_break_twenty_days_line))
-    logging.info('---------------shanghai_break_twenty_days_line_for_two_days  '+str(shanghai_break_twenty_days_line_for_two_days))
-    logging.info('---------------shenzhen_break_twenty_days_line  '+str(shenzhen_break_twenty_days_line))
-    logging.info('---------------shenzhen_break_twenty_days_line_for_two_days  '+str(shenzhen_break_twenty_days_line_for_two_days))
+
     try:
         all_stock_amount = int(all_stock_amount)
     except ValueError as e:
         raise APIValueError('all_stock_amount', '总股票数填写不正确')
     if all_stock_amount<=0:
         raise APIValueError('all_stock_amount', '总股票数填写不正确')
-    logging.info('---------------all_stock_amount: '+str(all_stock_amount))
+
     try:
         buy_stock_amount = int(buy_stock_amount)
     except ValueError as e:
         raise APIValueError('buy_stock_amount', '发出买入信号的股票数填写不正确')
     if buy_stock_amount<0:
         raise APIValueError('buy_stock_amount', '发出买入信号的股票数填写不正确')
-    logging.info('---------------buy_stock_amount: '+str(buy_stock_amount))
+
     try:
         pursuit_stock_amount = int(pursuit_stock_amount)
     except ValueError as e:
@@ -1366,59 +1441,71 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
     if pursuit_stock_amount<0:
         raise APIValueError('pursuit_stock_amount', '发出追涨信号的股票数填写不正确')
     pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount
-    logging.info('---------------pursuit_stock_amount: '+str(pursuit_stock_amount))
+
     try:
         iron_stock_amount = int(iron_stock_amount)
     except ValueError as e:
         raise APIValueError('iron_stock_amount', '发出买入或追涨信号的普钢股票数填写不正确')
     if iron_stock_amount<0:
         raise APIValueError('iron_stock_amount', '发出买入或追涨信号的普钢股票数填写不正确')
-    logging.info('---------------iron_stock_amount: '+str(iron_stock_amount))
+
     try:
         bank_stock_amount = int(bank_stock_amount)
     except ValueError as e:
         raise APIValueError('bank_stock_amount', '发出买入或追涨信号的银行股票数填写不正确')
     if bank_stock_amount<0:
         raise APIValueError('bank_stock_amount', '发出买入或追涨信号的银行股票数填写不正确')
-    logging.info('---------------bank_stock_amount: '+str(bank_stock_amount))
+
     try:
         strong_pursuit_stock_amount = int(strong_pursuit_stock_amount)
     except ValueError as e:
         raise APIValueError('strong_pursuit_stock_amount', '发出强烈追涨信号的股票数填写不正确')
     if strong_pursuit_stock_amount<0:
         raise APIValueError('strong_pursuit_stock_amount', '发出强烈追涨信号的股票数填写不正确')
-    logging.info('---------------strong_pursuit_stock_amount: '+str(strong_pursuit_stock_amount))
+
     try:
         pursuit_kdj_die_stock_amount = int(pursuit_kdj_die_stock_amount)
     except ValueError as e:
         raise APIValueError('pursuit_kdj_die_stock_amount', '发出追涨信号但KDJ死叉的股票数填写不正确')
     if pursuit_kdj_die_stock_amount<0:
         raise APIValueError('pursuit_kdj_die_stock_amount', '发出追涨信号但KDJ死叉的股票数填写不正确')
-    logging.info('---------------pursuit_kdj_die_stock_amount: '+str(pursuit_kdj_die_stock_amount))
+
     try:
         run_stock_amount = int(run_stock_amount)
     except ValueError as e:
         raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
     if run_stock_amount<0:
         raise APIValueError('run_stock_amount', '发出逃顶信号的股票数填写不正确')
-    logging.info('---------------run_stock_amount: '+str(run_stock_amount))
 
+    try:
+        method2_bigger_9_amount = int(method2_bigger_9_amount)
+    except ValueError as e:
+        raise APIValueError('method2_bigger_9_amount', '方式二涨幅大于9%股票数填写不正确')
+    if method2_bigger_9_amount<0:
+        raise APIValueError('method2_bigger_9_amount', '方式二涨幅大于9%股票数填写不正确')
 
     pursuit_kdj_die_stock_ratio = pursuit_kdj_die_stock_amount/pursuit_stock_amount if pursuit_stock_amount!=0 else 0
 
-    big_fall_after_multi_bank_iron = False
-    dps1 = await DailyParam.findAll('iron_stock_amount>? or bank_stock_amount>?', [1, 1], orderBy='date desc', limit=1)
-    if len(dps1)>0:
-        dps2 = await DailyParam.findAll('date>? and increase_range<=?', [dps1[0].date, -0.015])
-        if len(dps2) == 0:
-            big_fall_after_multi_bank_iron = False
+    big_fall_after_multi_bank_iron = True
+    if increase_range <= -0.015:
+        big_fall_after_multi_bank_iron = True
+    elif iron_stock_amount>1 or bank_stock_amount>1:
+        big_fall_after_multi_bank_iron = False
+    else:
+        dps1 = await DailyParam.findAll('(iron_stock_amount>? or bank_stock_amount>?) and date<=?', [1, 1, date], orderBy='date desc', limit=1)
+        if len(dps1)>0:
+            dps2 = await DailyParam.findAll('date>? and date<=? and increase_range<=?', [dps1[0].date, date, -0.015])
+            if len(dps2) == 0:
+                big_fall_after_multi_bank_iron = False
+            else:
+                big_fall_after_multi_bank_iron = True
         else:
             big_fall_after_multi_bank_iron = True
 
     four_days_pursuit_ratio_decrease = False
-    dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=3)
-    if len(dps3) == 3:
-        if (dps3[2].pursuit_stock_ratio >= 0.032 and dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio < 0.032) or (dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio >= 0.032 and pursuit_stock_ratio<0.032):
+    dps3 = await DailyParam.findAll('date<?', [date], orderBy='date desc', limit=2)
+    if len(dps3) == 2:
+        if dps3[1].pursuit_stock_ratio >= 0.032 and dps3[0].pursuit_stock_ratio >= 0.032 and pursuit_stock_ratio<0.032:
             four_days_pursuit_ratio_decrease = True
 
     dp = await DailyParam.find(date)
@@ -1430,8 +1517,10 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         dp.increase_range=increase_range
         dp.three_days_average_shanghai_increase=three_days_average_shanghai_increase
         dp.shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False
+        dp.shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False
         dp.shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False
         dp.shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False
+        dp.shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False
         dp.shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False
         dp.all_stock_amount=all_stock_amount
         dp.buy_stock_amount=buy_stock_amount
@@ -1446,6 +1535,8 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
         dp.pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio
         dp.run_stock_amount=run_stock_amount
         dp.run_stock_ratio=run_stock_amount/all_stock_amount
+        dp.method2_bigger_9_amount=method2_bigger_9_amount
+        dp.method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount
         dp.big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron
         dp.four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease
         dp.too_big_increase=(pursuit_stock_ratio>=0.03)
@@ -1461,8 +1552,10 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                         increase_range=increase_range,
                         three_days_average_shanghai_increase=three_days_average_shanghai_increase,
                         shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False,
+                        shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False,
                         shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False,
                         shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False,
+                        shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False,
                         shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False,
                         all_stock_amount=all_stock_amount,
                         buy_stock_amount=buy_stock_amount,
@@ -1477,13 +1570,19 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                         pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
                         run_stock_amount=run_stock_amount,
                         run_stock_ratio=run_stock_amount/all_stock_amount,
+                        method2_bigger_9_amount=method2_bigger_9_amount,
+                        method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount,
                         big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
                         four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
                         too_big_increase=(pursuit_stock_ratio>=0.03),
                         futures=futures,
                         method_1=method_1,
-                        method_2=method_2)
+                        method_2=method_2,
+                        recommendation='')
         await dp.save()
+    r = await get_recommend(dp)
+    dp.recommendation = r
+    await dp.update()
     return dp
 
 @asyncio.coroutine
@@ -1514,17 +1613,74 @@ async def get_params(request, *, page):
     if len(dps)>0:
         for dp in dps:
             if dp.stock_market_status == 0:
-                dp.stock_market_status = '<span style="background-color:red;color:white">熊市</span>'
+                if dp.twenty_days_line:
+                    dp.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-success">沪20上</span>'
+                else:
+                    dp.stock_market_status = '<span class="uk-badge uk-badge-danger">熊</span><span class="uk-badge uk-badge-danger">沪20下</span>'
             elif dp.stock_market_status == 1:
-                dp.stock_market_status = '<span style="background-color:pink;color:white">小牛市</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-warning">小牛</span>'
             else:
-                dp.stock_market_status = '<span style="background-color:green;color:white">大牛市</span>'
-            dp.twenty_days_line='<span style="background-color:green;color:white">否</span>' if dp.twenty_days_line else '<span style="background-color:red;color:white">跌破</span>'
-            dp.big_fall_after_multi_bank_iron='<span style="background-color:red;color:white">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span style="background-color:green;color:white">否</span>'
-            dp.four_days_pursuit_ratio_decrease='<span style="background-color:red;color:white">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span style="background-color:green;color:white">否</span>'
+                dp.stock_market_status = '<span class="uk-badge uk-badge-success">大牛</span>'
+            dp.twenty_days_line='<span class="uk-badge uk-badge-success">否</span>' if dp.twenty_days_line else '<span class="uk-badge uk-badge-danger">跌破</span>'
+            dp.big_fall_after_multi_bank_iron='<span class="uk-badge uk-badge-success">大跌</span>' if dp.big_fall_after_multi_bank_iron else '<span class="uk-badge uk-badge-danger">否</span>'
+            dp.four_days_pursuit_ratio_decrease='<span class="uk-badge uk-badge-danger">变小</span>' if dp.four_days_pursuit_ratio_decrease else '<span class="uk-badge uk-badge-success">否</span>'
             dp.shanghai_index = round_float(dp.shanghai_index)
-            dp.increase_range = str(round_float(dp.increase_range*100))+'%'
-            dp.three_days_average_shanghai_increase = str(round_float(dp.three_days_average_shanghai_increase*100))+'%'
+            
+            if dp.three_days_average_shanghai_increase >= 0.015:
+                dp.three_days_average_shanghai_increase = '<span class="uk-badge uk-badge-danger">'+str(round_float(dp.three_days_average_shanghai_increase*100))+'%</span>'
+            else:
+                dp.three_days_average_shanghai_increase = '<span class="uk-badge uk-badge-success">'+str(round_float(dp.three_days_average_shanghai_increase*100))+'%</span>'
+
+            if dp.buy_stock_amount > 0:
+                dp.buy_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.buy_stock_amount)+'</span>'
+            else:
+                dp.buy_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.buy_stock_amount)+'</span>'
+
+            if dp.pursuit_stock_ratio > 0.03:
+                dp.pursuit_stock_amount = '<span class="uk-badge uk-badge-warning">'+str(dp.pursuit_stock_amount)+'</span>'
+            elif dp.pursuit_stock_ratio < 0.0036:
+                dp.pursuit_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.pursuit_stock_amount)+'</span>'
+            else:
+                dp.pursuit_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.pursuit_stock_amount)+'</span>'
+
+            if dp.strong_pursuit_stock_ratio < 0.0018:
+                dp.strong_pursuit_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.strong_pursuit_stock_amount)+'</span>'
+            else:
+                dp.strong_pursuit_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.strong_pursuit_stock_amount)+'</span>'
+
+            if dp.pursuit_kdj_die_stock_ratio >= 0.5:
+                dp.pursuit_kdj_die_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.pursuit_kdj_die_stock_amount)+'</span>'
+            else:
+                dp.pursuit_kdj_die_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.pursuit_kdj_die_stock_amount)+'</span>'
+
+            if dp.run_stock_ratio > 0.02484:
+                dp.run_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.run_stock_amount)+'</span>'
+            else:
+                dp.run_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.run_stock_amount)+'</span>'
+
+            if dp.method2_bigger_9_ratio > 0.00155:
+                dp.method2_bigger_9_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.method2_bigger_9_amount)+'</span>'
+            else:
+                dp.method2_bigger_9_amount = '<span class="uk-badge uk-badge-success">'+str(dp.method2_bigger_9_amount)+'</span>'
+
+            if dp.iron_stock_amount >= 2:
+                dp.iron_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.iron_stock_amount)+'</span>'
+            else:
+                dp.iron_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.iron_stock_amount)+'</span>'
+
+            if dp.bank_stock_amount >= 2:
+                dp.bank_stock_amount = '<span class="uk-badge uk-badge-danger">'+str(dp.bank_stock_amount)+'</span>'
+            else:
+                dp.bank_stock_amount = '<span class="uk-badge uk-badge-success">'+str(dp.bank_stock_amount)+'</span>'
+
+            inc_str = str(round_float(dp.increase_range*100))+'%'
+            if dp.increase_range >= 0.015:
+                dp.increase_range = '<span class="uk-badge uk-badge-warning">'+inc_str+'</span>'
+            elif dp.increase_range <= -0.015:
+                dp.increase_range = '<span class="uk-badge uk-badge-danger">'+inc_str+'</span>'
+            else:
+                dp.increase_range = '<span class="uk-badge uk-badge-success">'+inc_str+'</span>'
+
     return {
         '__template__': 'param_records.html',
         'dps': dps
@@ -1561,3 +1717,92 @@ async def get_index_info(request, date):
             sum = sum + (index_list[i]-index_list[i+1])/index_list[i+1]
         three_days_average_shanghai_increase = round_float(sum/3, 4)
     return dict(shanghai_index=shanghai_index, increase_range=increase_range, three_days_average_shanghai_increase=three_days_average_shanghai_increase)
+
+# TODO it's ugly duplicate code. will refactor it later.
+@asyncio.coroutine
+async def get_recommend(dp):
+    dadieweizhidie = False
+    dp1 = await DailyParam.findAll('date<=? and increase_range<?', [dp.date, -0.015], orderBy='date desc', limit=1)
+    if len(dp1)>0:
+        dp2 = await DailyParam.findAll('date>? and increase_range>?', [dp1[0].date, 0], orderBy='date desc', limit=1)
+        if len(dp2)==0:
+            dadieweizhidie = True 
+    # 最大仓位
+    max_position = 0
+    if dp.stock_market_status == 0:
+        max_position = 0.25
+        if not dp.big_fall_after_multi_bank_iron:
+            max_position = 0.125
+    if dp.stock_market_status == 1 or dp.stock_market_status == 2:
+        max_position = 1
+        if dadieweizhidie or not dp.big_fall_after_multi_bank_iron:
+            max_position = 0.5
+
+    # 清仓 - 恢复了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
+    clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
+    #clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days
+
+    if clear:
+        return '明日务必择机清仓！'
+
+    dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
+    flag1 = False
+    for d in dp3:
+        # TODO 比较下面三个条件哪个好
+        # if d.run_stock_ratio > 0.02484:
+        #if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio < 0.03:
+        if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
+            flag1 = True
+            break
+    dp4 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=2)
+    flag2 = False
+    for d in dp4:
+        if d.pursuit_kdj_die_stock_ratio>=0.5:
+            flag2 = True
+            break
+
+    flag3 = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or (dp.stock_market_status==0 and dp.method2_bigger_9_ratio>0.00155) or flag2
+    # 不能买
+    cant_buy = dadieweizhidie or dp.four_days_pursuit_ratio_decrease or flag1 or flag3
+    can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
+    can_buy_method_2 = not cant_buy
+
+    if not ((can_buy_method_1 and dp.method_1) or (can_buy_method_2 and dp.method_2)):
+        return '明日不能买入！'
+
+    # 方式1买入仓位
+    if can_buy_method_1 and dp.method_1:
+        method1_buy_position = 1/4
+        if not cant_buy:
+            if not dp.big_fall_after_multi_bank_iron:
+                method1_buy_position = method1_buy_position/2
+        else:
+            if can_buy_method_1 and dadieweizhidie:
+                method1_buy_position = method1_buy_position/4
+            elif can_buy_method_1:
+                method1_buy_position = method1_buy_position/3
+            else:
+                method1_buy_position = 0
+
+        if method1_buy_position>0:
+            return '明日以开盘价买入'+dp.method_1+str(round_float(method1_buy_position*100))+'%仓'
+    # 方式2买入仓位
+    if can_buy_method_2 and dp.method_2:
+        method2_buy_position = 1/16
+        if dp.stock_market_status == 0:
+            if not can_buy_method_2:
+                method2_buy_position = 0
+            elif not dp.big_fall_after_multi_bank_iron:
+                method2_buy_position = method2_buy_position/2
+        if dp.stock_market_status == 1:
+            method2_buy_position = 1/10
+            if not can_buy_method_2:
+                method2_buy_position = 0
+        if dp.stock_market_status == 2:
+            method2_buy_position = 1/6
+            if not can_buy_method_2:
+                method2_buy_position = 0
+
+        if method2_buy_position>0:
+            return '明日以开盘价买入'+dp.method_2+str(round_float(method2_buy_position*100))+'%仓'
+    return '明日不能买入！'

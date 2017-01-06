@@ -17,6 +17,8 @@ build
 
 # directory
 Dockerfiles/*
+Docker/*
+remote/*
 
 #SQL
 stock-2016*.sql
