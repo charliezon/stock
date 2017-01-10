@@ -403,7 +403,7 @@ async def get_account(request, *, id):
         most_recent_account_record = account_records[0]
         stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
     if clear:
-        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>但可以保留一支按<span class="uk-badge">方式一</span>选出的股票【不能超过总仓位的'+str(round_float(1/6*100))+'%】。<br>勿急，收盘前清即可。</small></span>')
+        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>但可以保留一支按<span class="uk-badge">方式一</span>选出的股票（不能超过总仓位的'+str(round_float(1/6*100))+'%）<br>勿急，收盘前清即可。</small></span>')
         if len(account_records)>0 and len(stocks)>0:
             for stock in stocks:
                 stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
