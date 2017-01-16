@@ -403,7 +403,7 @@ async def get_account(request, *, id):
         most_recent_account_record = account_records[0]
         stocks = await StockHoldRecord.findAll('account_record_id=?', [most_recent_account_record.id])
     if clear:
-        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>但可以保留一支按<span class="uk-badge">方式一</span>选出的股票（不能超过总仓位的'+str(round_float(1/6*100))+'%）<br>勿急，收盘前清即可。</small></span>')
+        advices.append('<span style="color:red"><strong>今日务必择机清仓！</strong><small><br>勿急，收盘前清即可。</small></span>')
         if len(account_records)>0 and len(stocks)>0:
             for stock in stocks:
                 stock_method = await get_stock_method(stock.stock_name, stock.stock_buy_date)
@@ -487,7 +487,7 @@ async def get_account(request, *, id):
                                 advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(amount)+'股')
                         else:
                             advices.append('以开盘价<span class="uk-badge uk-badge-success">买入</span><span class="uk-badge uk-badge-success">方式二</span>'+dp[0].method_2+str(round_float(buy_position*100))+'%仓')
-    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆可买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span><span class="uk-badge uk-badge-success">方式二</span>只能牛市买，<span class="uk-badge">方式一</span>牛熊皆可买')
+    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆可买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span>只能牛市买')
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
