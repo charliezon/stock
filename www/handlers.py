@@ -343,7 +343,7 @@ async def get_account(request, *, id):
         clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
         #clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days
 
-        dp3 = await DailyParam.findAll(orderBy='date desc', limit=5)
+        dp3 = await DailyParam.findAll('date<=?', [today()], orderBy='date desc', limit=5)
         flag1 = False
         for d in dp3:
             # TODO 比较下面三个条件哪个好
@@ -352,7 +352,7 @@ async def get_account(request, *, id):
             if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
                 flag1 = True
                 break
-        dp4 = await DailyParam.findAll(orderBy='date desc', limit=2)
+        dp4 = await DailyParam.findAll('date<=?', [today()], orderBy='date desc', limit=2)
         flag2 = False
         for d in dp4:
             if d.pursuit_kdj_die_stock_ratio>=0.5:
