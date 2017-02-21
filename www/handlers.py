@@ -339,19 +339,19 @@ async def get_account(request, *, id):
             max_position = 1
             if dadieweizhidie or not dp[0].big_fall_after_multi_bank_iron:
                 max_position = 0.5
-        # 清仓 - 恢复了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
+
         clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days or (dp[0].run_stock_ratio>0.02484 and dp[0].pursuit_stock_ratio<0.03)
-        #clear = dp[0].shanghai_break_twenty_days_line_obviously or dp[0].shenzhen_break_twenty_days_line_obviously or dp[0].shanghai_break_twenty_days_line_for_two_days or dp[0].shenzhen_break_twenty_days_line_for_two_days
 
         dp3 = await DailyParam.findAll('date<=?', [today()], orderBy='date desc', limit=5)
+        pre_state = -1
         flag1 = False
+        xiong_to_niu = False
         for d in dp3:
-            # TODO 比较下面三个条件哪个好
-            # if d.run_stock_ratio > 0.02484:
-            #if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio<0.03:
             if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
                 flag1 = True
-                break
+            if (pre_state == 0) and (d.stock_market_status == 1 or d.stock_market_status == 2):
+                xiong_to_niu = True
+            pre_state = d.stock_market_status
         dp4 = await DailyParam.findAll('date<=?', [today()], orderBy='date desc', limit=2)
         flag2 = False
         for d in dp4:
@@ -360,10 +360,10 @@ async def get_account(request, *, id):
                 break
 
         flag3 = dp[0].shanghai_break_twenty_days_line or dp[0].shenzhen_break_twenty_days_line or dp[0].pursuit_stock_ratio<0.0036 or dp[0].strong_pursuit_stock_ratio<0.0018 or (dp[0].stock_market_status==0 and dp[0].method2_bigger_9_ratio>0.00155) or flag2
-
+        flag4 = flag1 and not (xiong_to_niu and (dp[0].stock_market_status == 1 or dp[0].stock_market_status == 2))
         # 不能买
-        cant_buy = dadieweizhidie or dp[0].four_days_pursuit_ratio_decrease or flag1 or flag3 or (dp[0].iron_stock_amount>1 or dp[0].bank_stock_amount>1)
-        can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
+        cant_buy = dadieweizhidie or dp[0].four_days_pursuit_ratio_decrease or flag4 or flag3 or (dp[0].iron_stock_amount>1 or dp[0].bank_stock_amount>1)
+        can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag4) and not flag3)
         can_buy_method_2 = not cant_buy
 
         # 方式1买入仓位
@@ -1744,22 +1744,21 @@ async def get_recommend(dp):
         if dadieweizhidie or not dp.big_fall_after_multi_bank_iron:
             max_position = 0.5
 
-    # 清仓 - 恢复了（逃顶数大增 且 追涨数未大增 时清仓）的条件，TODO 比较这两种选择哪个好
     clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days or (dp.run_stock_ratio>0.02484 and dp.pursuit_stock_ratio<0.03)
-    #clear = dp.shanghai_break_twenty_days_line_obviously or dp.shenzhen_break_twenty_days_line_obviously or dp.shanghai_break_twenty_days_line_for_two_days or dp.shenzhen_break_twenty_days_line_for_two_days
 
     if clear:
         return '明日务必择机清仓！'
 
     dp3 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=5)
+    pre_state = -1
     flag1 = False
+    xiong_to_niu = False
     for d in dp3:
-        # TODO 比较下面三个条件哪个好
-        # if d.run_stock_ratio > 0.02484:
-        #if d.run_stock_ratio > 0.02484 and d.pursuit_stock_ratio < 0.03:
         if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
             flag1 = True
-            break
+        if (pre_state == 0) and (d.stock_market_status == 1 or d.stock_market_status == 2):
+            xiong_to_niu = True
+        pre_state = d.stock_market_status
     dp4 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=2)
     flag2 = False
     for d in dp4:
@@ -1768,9 +1767,10 @@ async def get_recommend(dp):
             break
 
     flag3 = dp.shanghai_break_twenty_days_line or dp.shenzhen_break_twenty_days_line or dp.pursuit_stock_ratio<0.0036 or dp.strong_pursuit_stock_ratio<0.0018 or (dp.stock_market_status==0 and dp.method2_bigger_9_ratio>0.00155) or flag2
+    flag4 = flag1 and not (xiong_to_niu and (dp.stock_market_status == 1 or dp.stock_market_status == 2))
     # 不能买
-    cant_buy = dadieweizhidie or dp.four_days_pursuit_ratio_decrease or flag1 or flag3 or (dp.iron_stock_amount>1 or dp.bank_stock_amount>1)
-    can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag1) and not flag3)
+    cant_buy = dadieweizhidie or dp.four_days_pursuit_ratio_decrease or flag4 or flag3 or (dp.iron_stock_amount>1 or dp.bank_stock_amount>1)
+    can_buy_method_1 = (not cant_buy) or ((dadieweizhidie or flag4) and not flag3)
     can_buy_method_2 = not cant_buy
 
     if not ((can_buy_method_1 and dp.method_1) or (can_buy_method_2 and dp.method_2)):
