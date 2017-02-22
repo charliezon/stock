@@ -349,7 +349,7 @@ async def get_account(request, *, id):
         for d in dp3:
             if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
                 flag1 = True
-            if (pre_state == 0) and (d.stock_market_status == 1 or d.stock_market_status == 2):
+            if (d.stock_market_status == 0) and (pre_state == 1 or pre_state == 2):
                 xiong_to_niu = True
             pre_state = d.stock_market_status
         dp4 = await DailyParam.findAll('date<=?', [today()], orderBy='date desc', limit=2)
@@ -1756,7 +1756,7 @@ async def get_recommend(dp):
     for d in dp3:
         if d.shanghai_break_twenty_days_line_obviously or d.shenzhen_break_twenty_days_line_obviously or d.shanghai_break_twenty_days_line_for_two_days or d.shenzhen_break_twenty_days_line_for_two_days or (d.run_stock_ratio>0.02484 and d.pursuit_stock_ratio<0.03):
             flag1 = True
-        if (pre_state == 0) and (d.stock_market_status == 1 or d.stock_market_status == 2):
+        if (d.stock_market_status == 0) and (pre_state == 1 or pre_state == 2):
             xiong_to_niu = True
         pre_state = d.stock_market_status
     dp4 = await DailyParam.findAll('date<=?', [dp.date], orderBy='date desc', limit=2)
