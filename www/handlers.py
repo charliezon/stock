@@ -16,6 +16,7 @@ from models import User, Account, AccountRecord, StockHoldRecord, StockTradeReco
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
 from handler_help import get_stock_method
+from orm import get_pool
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -187,14 +188,21 @@ async def api_register_user(*, email, name, passwd):
         raise APIError('register:failed', 'name', 'Name is already in use.')
     uid = next_id()
     sha1_passwd = '%s:%s' % (uid, passwd)
-    user = User(id=uid, name=name.strip(), email=email, passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(), image='http://www.gravatar.com/avatar/%s?d=mm&s=120' % hashlib.md5(email.encode('utf-8')).hexdigest())
-    await user.save()
-    # make session cookie:
-    r = web.Response()
-    r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
-    user.passwd = '******'
-    r.content_type = 'application/json'
-    r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            user = User(id=uid, name=name.strip(), email=email, passwd=hashlib.sha1(sha1_passwd.encode('utf-8')).hexdigest(), image='http://www.gravatar.com/avatar/%s?d=mm&s=120' % hashlib.md5(email.encode('utf-8')).hexdigest())
+            await user.save(conn)
+            await conn.commit()
+            # make session cookie:
+            r = web.Response()
+            r.set_cookie(COOKIE_NAME, user2cookie(user, 86400), max_age=86400, httponly=True)
+            user.passwd = '******'
+            r.content_type = 'application/json'
+            r.body = json.dumps(user, ensure_ascii=False).encode('utf-8')
+        except BaseException as e:
+            await conn.rollback()
+            raise
     return r
 
 def check_admin(request):
@@ -212,79 +220,86 @@ def must_log_in(request):
 
 @asyncio.coroutine
 async def find_account_record(account_id, date):
-    account = await Account.find(account_id)
-    if not account:
-        raise APIPermissionError()
-    all_account_records = await AccountRecord.findAll('account_id=? and date=?', [account_id, date])
-    if len(all_account_records) <=0:
-        pre_account_records = await AccountRecord.findAll('account_id=? and date<?', [account_id, date], orderBy='date desc', limit=1)
-        if len(pre_account_records) <=0:
-            raise APIPermissionError()
+    async with get_pool().get() as conn:
+        await conn.begin()
         try:
-            account_record = AccountRecord(
-                date=date, 
-                account_id=account_id, 
-                stock_position=pre_account_records[0].stock_position,
-                security_funding=pre_account_records[0].security_funding, 
-                bank_funding=pre_account_records[0].bank_funding, 
-                total_stock_value=pre_account_records[0].total_stock_value,
-                total_assets=pre_account_records[0].total_assets,
-                float_profit_lost=pre_account_records[0].float_profit_lost,
-                total_profit=pre_account_records[0].total_profit,
-                principle=pre_account_records[0].principle)
-            await account_record.save()
+            account = await Account.find(account_id)
+            if not account:
+                raise APIPermissionError()
+            all_account_records = await AccountRecord.findAll('account_id=? and date=?', [account_id, date])
+            if len(all_account_records) <=0:
+                pre_account_records = await AccountRecord.findAll('account_id=? and date<?', [account_id, date], orderBy='date desc', limit=1)
+                if len(pre_account_records) <=0:
+                    raise APIPermissionError()
+                try:
+                    account_record = AccountRecord(
+                        date=date, 
+                        account_id=account_id, 
+                        stock_position=pre_account_records[0].stock_position,
+                        security_funding=pre_account_records[0].security_funding, 
+                        bank_funding=pre_account_records[0].bank_funding, 
+                        total_stock_value=pre_account_records[0].total_stock_value,
+                        total_assets=pre_account_records[0].total_assets,
+                        float_profit_lost=pre_account_records[0].float_profit_lost,
+                        total_profit=pre_account_records[0].total_profit,
+                        principle=pre_account_records[0].principle)
+                    await account_record.save(conn)
 
-            stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
-            if len(stocks) > 0:
-                total_stock_value = 0
-                float_profit_lost = 0
-                for stock in stocks:
-                    new_stock = StockHoldRecord(
-                        account_record_id=account_record.id,
-                        stock_code=stock.stock_code,
-                        stock_name=stock.stock_name,
-                        stock_amount=stock.stock_amount,
-                        stock_current_price=stock.stock_current_price,
-                        stock_buy_price=stock.stock_buy_price,
-                        stock_sell_price=stock.stock_sell_price,
-                        stock_buy_date=stock.stock_buy_date)
-                    current_price = get_current_price(stock.stock_code, date)
-                    if current_price:
-                        new_stock.stock_current_price = current_price
-                    if not new_stock.stock_sell_price:
-                        new_stock.stock_sell_price = get_sell_price(new_stock.stock_code, new_stock.stock_buy_date)
-                    total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
-                    float_profit_lost = float_profit_lost + (new_stock.stock_current_price-new_stock.stock_buy_price)*new_stock.stock_amount - compute_fee(True, account.commission_rate, new_stock.stock_code, new_stock.stock_buy_price, new_stock.stock_amount)
-                    await new_stock.save()
-                account_record.total_stock_value = total_stock_value
-                account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
-                account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
-                account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
-                account_record.float_profit_lost = round_float(float_profit_lost)
-                await account_record.update()
-        except Error as e:
-            raise APIPermissionError()
-    else:
-        account_record = all_account_records[0]
-        stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-        if len(stocks) > 0:
-            total_stock_value = 0
-            float_profit_lost = 0
-            for stock in stocks:
-                current_price = get_current_price(stock.stock_code, date)
-                if current_price:
-                    stock.stock_current_price = current_price
-                if not stock.stock_sell_price:
-                    stock.stock_sell_price = get_sell_price(stock.stock_code, stock.stock_buy_date)
-                total_stock_value = total_stock_value + stock.stock_amount * stock.stock_current_price
-                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
-                await stock.update()
-            account_record.total_stock_value = total_stock_value
-            account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
-            account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
-            account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
-            account_record.float_profit_lost = round_float(float_profit_lost)
-            await account_record.update()
+                    stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
+                    if len(stocks) > 0:
+                        total_stock_value = 0
+                        float_profit_lost = 0
+                        for stock in stocks:
+                            new_stock = StockHoldRecord(
+                                account_record_id=account_record.id,
+                                stock_code=stock.stock_code,
+                                stock_name=stock.stock_name,
+                                stock_amount=stock.stock_amount,
+                                stock_current_price=stock.stock_current_price,
+                                stock_buy_price=stock.stock_buy_price,
+                                stock_sell_price=stock.stock_sell_price,
+                                stock_buy_date=stock.stock_buy_date)
+                            current_price = get_current_price(stock.stock_code, date)
+                            if current_price:
+                                new_stock.stock_current_price = current_price
+                            if not new_stock.stock_sell_price:
+                                new_stock.stock_sell_price = get_sell_price(new_stock.stock_code, new_stock.stock_buy_date)
+                            total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
+                            float_profit_lost = float_profit_lost + (new_stock.stock_current_price-new_stock.stock_buy_price)*new_stock.stock_amount - compute_fee(True, account.commission_rate, new_stock.stock_code, new_stock.stock_buy_price, new_stock.stock_amount)
+                            await new_stock.save(conn)
+                        account_record.total_stock_value = total_stock_value
+                        account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
+                        account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
+                        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+                        account_record.float_profit_lost = round_float(float_profit_lost)
+                        await account_record.update(conn)
+                except Error as e:
+                    raise APIPermissionError()
+            else:
+                account_record = all_account_records[0]
+                stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+                if len(stocks) > 0:
+                    total_stock_value = 0
+                    float_profit_lost = 0
+                    for stock in stocks:
+                        current_price = get_current_price(stock.stock_code, date)
+                        if current_price:
+                            stock.stock_current_price = current_price
+                        if not stock.stock_sell_price:
+                            stock.stock_sell_price = get_sell_price(stock.stock_code, stock.stock_buy_date)
+                        total_stock_value = total_stock_value + stock.stock_amount * stock.stock_current_price
+                        float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                        await stock.update(conn)
+                    account_record.total_stock_value = total_stock_value
+                    account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
+                    account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
+                    account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+                    account_record.float_profit_lost = round_float(float_profit_lost)
+                    await account_record.update(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise
     return account_record
 
 @asyncio.coroutine
@@ -593,24 +608,31 @@ async def get_account_record(request, *, account_id, date, stock_amount):
             price_update = False
             float_profit_lost = 0
             total_stock_value = 0
-            for stock in stock_hold_records:
-                # TODO 改成从数据库读取
-                current_price = get_current_price(stock.stock_code, date)
-                if current_price:
-                    stock.stock_current_price = current_price
-                    #stock.stock_current_price = int(random.uniform(1, 100)*100)/100
-                    await stock.update()
-                    price_update = True
-                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
-                total_stock_value = total_stock_value + stock.stock_current_price*stock.stock_amount
-            if price_update:
-                account_record.float_profit_lost = round_float(float_profit_lost)
-                account_record.total_stock_value = round_float(total_stock_value)
-                account_record.total_assets = round_float(account_record.total_stock_value + account_record.security_funding + account_record.bank_funding)
-                account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
-                account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
-                rows = await account_record.update()
-            account_record.stock_hold_records = stock_hold_records
+            async with get_pool().get() as conn:
+                await conn.begin()
+                try:
+                    for stock in stock_hold_records:
+                        # TODO 改成从数据库读取
+                        current_price = get_current_price(stock.stock_code, date)
+                        if current_price:
+                            stock.stock_current_price = current_price
+                            #stock.stock_current_price = int(random.uniform(1, 100)*100)/100
+                            await stock.update(conn)
+                            price_update = True
+                        float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                        total_stock_value = total_stock_value + stock.stock_current_price*stock.stock_amount
+                    if price_update:
+                        account_record.float_profit_lost = round_float(float_profit_lost)
+                        account_record.total_stock_value = round_float(total_stock_value)
+                        account_record.total_assets = round_float(account_record.total_stock_value + account_record.security_funding + account_record.bank_funding)
+                        account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
+                        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+                        rows = await account_record.update(conn)
+                    account_record.stock_hold_records = stock_hold_records
+                    await conn.commit()
+                except BaseException as e:
+                    await conn.rollback()
+                    raise APIPermissionError()
         else:
             account_record.stock_hold_records = []
         for x in range(stock_amount-len(account_record.stock_hold_records)):
@@ -740,7 +762,14 @@ async def api_modify_account(request, *, id, name, commission_rate):
         raise APIValueError('commission_rate', '手续费率不能小于0')
     account.name = name.strip()
     account.commission_rate = commission_rate
-    await account.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await account.update(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('name', '修改账户失败')
     return account
 
 @asyncio.coroutine
@@ -768,14 +797,17 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
         raise APIValueError('date', '请选择日期')
     if date.strip() > today():
         raise APIValueError('date', '日期不能晚于今天')
-    account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
-    await account.save()
-    try:
-        account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=round_float(initial_funding), total_stock_value=0, total_assets=round_float(initial_funding), float_profit_lost=0, total_profit=0, principle=round_float(initial_funding))
-        await account_record.save()
-    except Error as e:
-        account.remove()
-        raise APIValueError('name', '创建账户失败')
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+            await account.save(conn)
+            account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=round_float(initial_funding), total_stock_value=0, total_assets=round_float(initial_funding), float_profit_lost=0, total_profit=0, principle=round_float(initial_funding))
+            await account_record.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('name', '创建账户失败')
     return account
 
 @asyncio.coroutine
@@ -815,23 +847,26 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
         raise APIValueError('date', '请选择日期')
     if date.strip() > today():
         raise APIValueError('date', '日期不能晚于今天')
-    account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
-    await account.save()
-    try:
-        account_record = AccountRecord(date=date, 
-                                        account_id=account.id, 
-                                        stock_position=0, 
-                                        security_funding=round_float(initial_security_funding), 
-                                        bank_funding=round_float(initial_bank_funding), 
-                                        total_stock_value=0, 
-                                        total_assets=round_float(initial_security_funding+initial_bank_funding), 
-                                        float_profit_lost=0, 
-                                        total_profit=round_float(initial_security_funding+initial_bank_funding-initial_funding), 
-                                        principle=round_float(initial_funding))
-        await account_record.save()
-    except Error as e:
-        account.remove()
-        raise APIValueError('name', '创建账户失败')
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+            await account.save(conn)
+            account_record = AccountRecord(date=date, 
+                                            account_id=account.id, 
+                                            stock_position=0, 
+                                            security_funding=round_float(initial_security_funding), 
+                                            bank_funding=round_float(initial_bank_funding), 
+                                            total_stock_value=0, 
+                                            total_assets=round_float(initial_security_funding+initial_bank_funding), 
+                                            float_profit_lost=0, 
+                                            total_profit=round_float(initial_security_funding+initial_bank_funding-initial_funding), 
+                                            principle=round_float(initial_funding))
+            await account_record.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('name', '创建账户失败')
     return account
 
 @asyncio.coroutine
@@ -886,7 +921,10 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date)
+    try:
+        account_record = await find_account_record(account_id, date)
+    except BaseException as e:
+        raise APIPermissionError()
 
     fee = compute_fee(True, accounts[0].commission_rate, stock_code, stock_price, stock_amount)
     money = stock_amount * stock_price + fee
@@ -906,44 +944,50 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
     sell_price = get_sell_price(stock_code, date)
 
     exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code])
-    if len(exist_stocks) > 0:
-        exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
-        exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
-        exist_stocks[0].stock_sell_price = sell_price
-        exist_stocks[0].stock_current_price=current_price
-        await exist_stocks[0].update()
-    else:
-        new_stock = StockHoldRecord(
-            account_record_id=account_record.id,
-            stock_code=stock_code,
-            stock_name=stock_name,
-            stock_amount=stock_amount,
-            stock_current_price=current_price,
-            stock_buy_price=stock_price,
-            stock_sell_price=sell_price,
-            stock_buy_date=date)
-        await new_stock.save()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            if len(exist_stocks) > 0:
+                exist_stocks[0].stock_buy_price = (exist_stocks[0].stock_buy_price*exist_stocks[0].stock_amount + stock_price*stock_amount)/(exist_stocks[0].stock_amount + stock_amount)
+                exist_stocks[0].stock_amount = exist_stocks[0].stock_amount + stock_amount
+                exist_stocks[0].stock_sell_price = sell_price
+                exist_stocks[0].stock_current_price=current_price
+                await exist_stocks[0].update(conn)
+            else:
+                new_stock = StockHoldRecord(
+                    account_record_id=account_record.id,
+                    stock_code=stock_code,
+                    stock_name=stock_name,
+                    stock_amount=stock_amount,
+                    stock_current_price=current_price,
+                    stock_buy_price=stock_price,
+                    stock_sell_price=sell_price,
+                    stock_buy_date=date)
+                await new_stock.save(conn)
 
-    float_profit_lost = 0
-    stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-    for stock in stocks:
-        float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
-    
-    account_record.float_profit_lost = round_float(float_profit_lost)
+            float_profit_lost = 0
+            stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+            for stock in stocks:
+                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+            
+            account_record.float_profit_lost = round_float(float_profit_lost)
 
-    await account_record.update()
+            await account_record.update(conn)
 
-    stock_trade = StockTradeRecord(
-        account_id=accounts[0].id,
-        stock_code=stock_code,
-        stock_name=stock_name,
-        stock_amount=stock_amount,
-        stock_price=stock_price,
-        stock_operation=True,
-        trade_series='0',
-        stock_date=date)
-    await stock_trade.save()
-    
+            stock_trade = StockTradeRecord(
+                account_id=accounts[0].id,
+                stock_code=stock_code,
+                stock_name=stock_name,
+                stock_amount=stock_amount,
+                stock_price=stock_price,
+                stock_operation=True,
+                trade_series='0',
+                stock_date=date)
+            await stock_trade.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('stock_name', '买入失败')
     return accounts[0]
 
 @asyncio.coroutine
@@ -997,7 +1041,10 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
     if len(accounts) <=0:
         raise APIPermissionError()
-    account_record = await find_account_record(account_id, date)
+    try:
+        account_record = await find_account_record(account_id, date)
+    except BaseException as e:
+        raise APIPermissionError()
     exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code])
     if len(exist_stocks) <= 0 or exist_stocks[0].stock_amount < stock_amount:
         raise APIValueError('stock_amount', '股票数量不足')
@@ -1013,51 +1060,58 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
         account_record.stock_position = 0
     account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
 
-    stock_trade = StockTradeRecord(
-        account_id=accounts[0].id,
-        stock_code=stock_code,
-        stock_name=stock_name,
-        stock_amount=stock_amount,
-        stock_price=stock_price,
-        stock_operation=False,
-        trade_series='0',
-        stock_date=date)
-    rows = await stock_trade.save()
-    if rows != 1:
-        raise APIValueError('stock_name', '卖出失败')
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            stock_trade = StockTradeRecord(
+                account_id=accounts[0].id,
+                stock_code=stock_code,
+                stock_name=stock_name,
+                stock_amount=stock_amount,
+                stock_price=stock_price,
+                stock_operation=False,
+                trade_series='0',
+                stock_date=date)
+            rows = await stock_trade.save(conn)
+            if rows != 1:
+                raise APIValueError('stock_name', '卖出失败')
 
-    if stock_amount == exist_stocks[0].stock_amount:
-        buy_date = exist_stocks[0].stock_buy_date
-        trade_series = exist_stocks[0].id
-        rows = await exist_stocks[0].remove()
-        if rows != 1:
-            raise APIValueError('stock_name', '卖出失败')
-        stock_trades = await StockTradeRecord.findAll('account_id=? and stock_code=? and stock_date>=? and trade_series=?', [accounts[0].id, stock_code, buy_date, '0'])
-        profit = 0
-        for trade in stock_trades:
-            if trade.stock_operation:
-                profit = profit - trade.stock_amount*trade.stock_price - compute_fee(True, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
+            if stock_amount == exist_stocks[0].stock_amount:
+                buy_date = exist_stocks[0].stock_buy_date
+                trade_series = exist_stocks[0].id
+                rows = await exist_stocks[0].remove(conn)
+                if rows != 1:
+                    raise APIValueError('stock_name', '卖出失败')
+                stock_trades = await StockTradeRecord.findAll('account_id=? and stock_code=? and stock_date>=? and trade_series=?', [accounts[0].id, stock_code, buy_date, '0'])
+                profit = 0
+                for trade in stock_trades:
+                    if trade.stock_operation:
+                        profit = profit - trade.stock_amount*trade.stock_price - compute_fee(True, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
+                    else:
+                        profit = profit + trade.stock_amount*trade.stock_price - compute_fee(False, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
+                    trade.trade_series = trade_series
+                    await trade.update(conn)
+                if profit>0:
+                    accounts[0].success_times = accounts[0].success_times + 1;
+                else:
+                    accounts[0].fail_times = accounts[0].fail_times + 1;
+                await accounts[0].update(conn)
             else:
-                profit = profit + trade.stock_amount*trade.stock_price - compute_fee(False, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
-            trade.trade_series = trade_series
-            await trade.update()
-        if profit>0:
-            accounts[0].success_times = accounts[0].success_times + 1;
-        else:
-            accounts[0].fail_times = accounts[0].fail_times + 1;
-        await accounts[0].update()
-    else:
-        exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
-        await exist_stocks[0].update()
+                exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
+                await exist_stocks[0].update(conn)
 
-    float_profit_lost = 0
-    stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-    for stock in stocks:
-        float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
-    
-    account_record.float_profit_lost = round_float(float_profit_lost)
+            float_profit_lost = 0
+            stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+            for stock in stocks:
+                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+            
+            account_record.float_profit_lost = round_float(float_profit_lost)
 
-    await account_record.update()
+            await account_record.update(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('stock_name', '卖出失败')
 
     return accounts[0]
 
@@ -1085,32 +1139,42 @@ async def api_add_security_funding(request, *, funding_amount, date, account_id)
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date.strip())
+    try:
+        account_record = await find_account_record(account_id, date.strip())
+    except BaseException as e:
+        raise APIPermissionError()
 
     if account_record.bank_funding < funding_amount:
         raise APIValueError('funding_amount', '转账金额不足')
 
-    account_record.bank_funding = round_float(account_record.bank_funding - funding_amount)
-    account_record.security_funding = round_float(account_record.security_funding + funding_amount)
-    await account_record.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            account_record.bank_funding = round_float(account_record.bank_funding - funding_amount)
+            account_record.security_funding = round_float(account_record.security_funding + funding_amount)
+            await account_record.update(conn)
 
-    security_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=1,
-        security_or_bank=True,
-        date=date)
+            security_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=1,
+                security_or_bank=True,
+                date=date)
 
-    await security_funding_change.save()
+            await security_funding_change.save(conn)
 
-    bank_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=0,
-        security_or_bank=False,
-        date=date)
+            bank_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=0,
+                security_or_bank=False,
+                date=date)
 
-    await bank_funding_change.save()
+            await bank_funding_change.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('funding_amount', '银证转账失败')
 
     return accounts[0]
 
@@ -1136,32 +1200,42 @@ async def api_minus_security_funding(request, *, funding_amount, date, account_i
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date.strip())
+    try:
+        account_record = await find_account_record(account_id, date.strip())
+    except BaseException as e:
+        raise APIPermissionError()
 
     if account_record.security_funding < funding_amount:
         raise APIValueError('funding_amount', '转账金额不足')
 
-    account_record.bank_funding = round_float(account_record.bank_funding + funding_amount)
-    account_record.security_funding = round_float(account_record.security_funding - funding_amount)
-    await account_record.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            account_record.bank_funding = round_float(account_record.bank_funding + funding_amount)
+            account_record.security_funding = round_float(account_record.security_funding - funding_amount)
+            await account_record.update(conn)
 
-    security_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=0,
-        security_or_bank=True,
-        date=date)
+            security_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=0,
+                security_or_bank=True,
+                date=date)
 
-    await security_funding_change.save()
+            await security_funding_change.save(conn)
 
-    bank_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=1,
-        security_or_bank=False,
-        date=date)
+            bank_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=1,
+                security_or_bank=False,
+                date=date)
 
-    await bank_funding_change.save()
+            await bank_funding_change.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('funding_amount', '银证转账失败')
 
     return accounts[0]
 
@@ -1186,25 +1260,35 @@ async def api_add_bank_funding(request, *, funding_amount, date, account_id):
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date.strip())
+    try:
+        account_record = await find_account_record(account_id, date.strip())
+    except BaseException as e:
+        raise APIPermissionError()
 
-    account_record.bank_funding = round_float(account_record.bank_funding + funding_amount)
-    account_record.principle = round_float(account_record.principle + funding_amount)
-    account_record.total_assets = round_float(account_record.total_assets + funding_amount)
-    if account_record.total_assets > 0:
-        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
-    else:
-        account_record.stock_position = 0
-    await account_record.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            account_record.bank_funding = round_float(account_record.bank_funding + funding_amount)
+            account_record.principle = round_float(account_record.principle + funding_amount)
+            account_record.total_assets = round_float(account_record.total_assets + funding_amount)
+            if account_record.total_assets > 0:
+                account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+            else:
+                account_record.stock_position = 0
+            await account_record.update(conn)
 
-    bank_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=1,
-        security_or_bank=False,
-        date=date)
+            bank_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=1,
+                security_or_bank=False,
+                date=date)
 
-    await bank_funding_change.save()
+            await bank_funding_change.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('funding_amount', '增加金额失败')
 
     return accounts[0]
 
@@ -1229,28 +1313,38 @@ async def api_minus_bank_funding(request, *, funding_amount, date, account_id):
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date.strip())
+    try:
+        account_record = await find_account_record(account_id, date.strip())
+    except BaseException as e:
+        raise APIPermissionError()
 
     if (account_record.bank_funding < funding_amount):
         raise APIValueError('funding_amount', '金额不足')
 
-    account_record.bank_funding = round_float(account_record.bank_funding - funding_amount)
-    account_record.principle = round_float(account_record.principle - funding_amount)
-    account_record.total_assets = round_float(account_record.total_assets - funding_amount)
-    if account_record.total_assets > 0:
-        account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
-    else:
-        account_record.stock_position = 0
-    await account_record.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            account_record.bank_funding = round_float(account_record.bank_funding - funding_amount)
+            account_record.principle = round_float(account_record.principle - funding_amount)
+            account_record.total_assets = round_float(account_record.total_assets - funding_amount)
+            if account_record.total_assets > 0:
+                account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
+            else:
+                account_record.stock_position = 0
+            await account_record.update(conn)
 
-    bank_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=0,
-        security_or_bank=False,
-        date=date)
+            bank_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=0,
+                security_or_bank=False,
+                date=date)
 
-    await bank_funding_change.save()
+            await bank_funding_change.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('funding_amount', '减少金额失败')
 
     return accounts[0]
 
@@ -1275,7 +1369,11 @@ async def api_modify_security_funding(request, *, funding_amount, date, account_
     if len(accounts) <=0:
         raise APIPermissionError()
 
-    account_record = await find_account_record(account_id, date.strip())
+    try:
+        account_record = await find_account_record(account_id, date.strip())
+    except BaseException as e:
+        raise APIPermissionError()
+
     account_record.security_funding = funding_amount
 
     account_record.total_assets = round_float(account_record.total_stock_value + account_record.bank_funding + account_record.security_funding)
@@ -1285,16 +1383,23 @@ async def api_modify_security_funding(request, *, funding_amount, date, account_
         account_record.stock_position = 0
     account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
 
-    await account_record.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await account_record.update(conn)
 
-    security_funding_change = AccountAssetChange(
-        account_id=account_id,
-        change_amount=funding_amount,
-        operation=2,
-        security_or_bank=True,
-        date=date)
+            security_funding_change = AccountAssetChange(
+                account_id=account_id,
+                change_amount=funding_amount,
+                operation=2,
+                security_or_bank=True,
+                date=date)
 
-    await security_funding_change.save()
+            await security_funding_change.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('funding_amount', '修改金额失败')
 
     return accounts[0]
 
@@ -1515,80 +1620,87 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
             four_days_pursuit_ratio_decrease = True
 
     dp = await DailyParam.find(date)
-    if dp:
-        dp.date = date
-        dp.shanghai_index=shanghai_index
-        dp.stock_market_status=int(stock_market_status)
-        dp.twenty_days_line=True if str(twenty_days_line)=='1' else False
-        dp.increase_range=increase_range
-        dp.three_days_average_shanghai_increase=three_days_average_shanghai_increase
-        dp.shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False
-        dp.shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False
-        dp.shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False
-        dp.shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False
-        dp.shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False
-        dp.shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False
-        dp.all_stock_amount=all_stock_amount
-        dp.buy_stock_amount=buy_stock_amount
-        dp.buy_stock_ratio=buy_stock_amount/all_stock_amount
-        dp.pursuit_stock_amount=pursuit_stock_amount
-        dp.pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount
-        dp.iron_stock_amount=iron_stock_amount
-        dp.bank_stock_amount=bank_stock_amount
-        dp.strong_pursuit_stock_amount=strong_pursuit_stock_amount
-        dp.strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount
-        dp.pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount
-        dp.pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio
-        dp.run_stock_amount=run_stock_amount
-        dp.run_stock_ratio=run_stock_amount/all_stock_amount
-        dp.method2_bigger_9_amount=method2_bigger_9_amount
-        dp.method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount
-        dp.big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron
-        dp.four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease
-        dp.too_big_increase=(pursuit_stock_ratio>=0.03)
-        dp.futures=futures
-        dp.method_1=method_1
-        dp.method_2=method_2
-        await dp.update()
-    else:
-        dp = DailyParam(date=date,
-                        shanghai_index=shanghai_index,
-                        stock_market_status=int(stock_market_status),
-                        twenty_days_line=True if str(twenty_days_line)=='1' else False,
-                        increase_range=increase_range,
-                        three_days_average_shanghai_increase=three_days_average_shanghai_increase,
-                        shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False,
-                        shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False,
-                        shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False,
-                        shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False,
-                        shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False,
-                        shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False,
-                        all_stock_amount=all_stock_amount,
-                        buy_stock_amount=buy_stock_amount,
-                        buy_stock_ratio=buy_stock_amount/all_stock_amount,
-                        pursuit_stock_amount=pursuit_stock_amount,
-                        pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount,
-                        iron_stock_amount=iron_stock_amount,
-                        bank_stock_amount=bank_stock_amount,
-                        strong_pursuit_stock_amount=strong_pursuit_stock_amount,
-                        strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount,
-                        pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount,
-                        pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
-                        run_stock_amount=run_stock_amount,
-                        run_stock_ratio=run_stock_amount/all_stock_amount,
-                        method2_bigger_9_amount=method2_bigger_9_amount,
-                        method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount,
-                        big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
-                        four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
-                        too_big_increase=(pursuit_stock_ratio>=0.03),
-                        futures=futures,
-                        method_1=method_1,
-                        method_2=method_2,
-                        recommendation='')
-        await dp.save()
-    r = await get_recommend(dp)
-    dp.recommendation = r
-    await dp.update()
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            if dp:
+                dp.date = date
+                dp.shanghai_index=shanghai_index
+                dp.stock_market_status=int(stock_market_status)
+                dp.twenty_days_line=True if str(twenty_days_line)=='1' else False
+                dp.increase_range=increase_range
+                dp.three_days_average_shanghai_increase=three_days_average_shanghai_increase
+                dp.shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False
+                dp.shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False
+                dp.shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False
+                dp.shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False
+                dp.shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False
+                dp.shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False
+                dp.all_stock_amount=all_stock_amount
+                dp.buy_stock_amount=buy_stock_amount
+                dp.buy_stock_ratio=buy_stock_amount/all_stock_amount
+                dp.pursuit_stock_amount=pursuit_stock_amount
+                dp.pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount
+                dp.iron_stock_amount=iron_stock_amount
+                dp.bank_stock_amount=bank_stock_amount
+                dp.strong_pursuit_stock_amount=strong_pursuit_stock_amount
+                dp.strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount
+                dp.pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount
+                dp.pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio
+                dp.run_stock_amount=run_stock_amount
+                dp.run_stock_ratio=run_stock_amount/all_stock_amount
+                dp.method2_bigger_9_amount=method2_bigger_9_amount
+                dp.method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount
+                dp.big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron
+                dp.four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease
+                dp.too_big_increase=(pursuit_stock_ratio>=0.03)
+                dp.futures=futures
+                dp.method_1=method_1
+                dp.method_2=method_2
+                await dp.update(conn)
+            else:
+                dp = DailyParam(date=date,
+                                shanghai_index=shanghai_index,
+                                stock_market_status=int(stock_market_status),
+                                twenty_days_line=True if str(twenty_days_line)=='1' else False,
+                                increase_range=increase_range,
+                                three_days_average_shanghai_increase=three_days_average_shanghai_increase,
+                                shanghai_break_twenty_days_line=True if str(shanghai_break_twenty_days_line)=='1' else False,
+                                shanghai_break_twenty_days_line_obviously=True if str(shanghai_break_twenty_days_line_obviously)=='1' else False,
+                                shanghai_break_twenty_days_line_for_two_days=True if str(shanghai_break_twenty_days_line_for_two_days)=='1' else False,
+                                shenzhen_break_twenty_days_line=True if str(shenzhen_break_twenty_days_line)=='1' else False,
+                                shenzhen_break_twenty_days_line_obviously=True if str(shenzhen_break_twenty_days_line_obviously)=='1' else False,
+                                shenzhen_break_twenty_days_line_for_two_days=True if str(shenzhen_break_twenty_days_line_for_two_days)=='1' else False,
+                                all_stock_amount=all_stock_amount,
+                                buy_stock_amount=buy_stock_amount,
+                                buy_stock_ratio=buy_stock_amount/all_stock_amount,
+                                pursuit_stock_amount=pursuit_stock_amount,
+                                pursuit_stock_ratio=pursuit_stock_amount/all_stock_amount,
+                                iron_stock_amount=iron_stock_amount,
+                                bank_stock_amount=bank_stock_amount,
+                                strong_pursuit_stock_amount=strong_pursuit_stock_amount,
+                                strong_pursuit_stock_ratio=strong_pursuit_stock_amount/all_stock_amount,
+                                pursuit_kdj_die_stock_amount=pursuit_kdj_die_stock_amount,
+                                pursuit_kdj_die_stock_ratio=pursuit_kdj_die_stock_ratio,
+                                run_stock_amount=run_stock_amount,
+                                run_stock_ratio=run_stock_amount/all_stock_amount,
+                                method2_bigger_9_amount=method2_bigger_9_amount,
+                                method2_bigger_9_ratio=method2_bigger_9_amount/all_stock_amount,
+                                big_fall_after_multi_bank_iron=big_fall_after_multi_bank_iron,
+                                four_days_pursuit_ratio_decrease=four_days_pursuit_ratio_decrease,
+                                too_big_increase=(pursuit_stock_ratio>=0.03),
+                                futures=futures,
+                                method_1=method_1,
+                                method_2=method_2,
+                                recommendation='')
+                await dp.save(conn)
+            r = await get_recommend(dp)
+            dp.recommendation = r
+            await dp.update(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('date', '操作失败')
     return dp
 
 @asyncio.coroutine
