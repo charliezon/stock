@@ -162,7 +162,7 @@ $(document).ready(function(){
 
     $("#modify_security_funding_button").click(
         function() {
-            modify_security_funding_vm.funding_amount=0;
+            modify_security_funding_vm.funding_amount='{{most_recent_account_record.security_funding}}';
             modify_security_funding_vm.date=getTodayString();
             $("#modify_security_funding_date").val(getTodayString());
         });
