@@ -898,6 +898,37 @@ async def api_remove_account(request, *, account_id):
     return '删除账户成功'
 
 @asyncio.coroutine
+@post('/api/remove/account_records')
+async def api_remove_account_record(request, *, account_record_id):
+    must_log_in(request)
+    if not account_record_id or not account_record_id.strip():
+        return '删除账户记录失败(1)'
+    account_record = await AccountRecord.find(account_record_id)
+    if not account_record:
+        return '删除账户记录失败(2)'
+    account = await Account.find(account_record.account_id)
+    if not account:
+        return '删除账户记录失败(3)'
+    if (not request.__user__.admin and request.__user__.id != account.user_id):
+        return '删除账户记录失败(4)'
+    all_account_records = await AccountRecord.findAll('account_id=?', [account.id])
+    if len(all_account_records) == 1:
+        return '仅有一条记录，不许删除'
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await StockTradeRecord.removeAll(conn, 'account_id=? and stock_date=?', [account.id, account_record.date])
+            await AccountAssetChange.removeAll(conn, 'account_id=? and date=?', [account.id, account_record.date])
+            await StockHoldRecord.removeAll(conn, 'account_record_id=?', [account_record_id])
+            await account_record.remove(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            return '删除账户记录失败(5)'
+    return '删除账户记录成功'
+
+@asyncio.coroutine
 @post('/api/buy')
 async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount, date, account_id):
     must_log_in(request)

@@ -363,6 +363,15 @@ function remove_account(account_id) {
     });
 }
 
+function remove_account_record(account_record_id) {
+    $.post('/api/remove/account_records', { account_record_id: account_record_id }).success(function (data) {
+        UIkit.modal.alert(data);
+        window.setTimeout(function(){window.location.reload();}, 2000);
+    }).error(function() {
+        UIkit.modal.alert('删除账户记录失败！');
+    });
+}
+
 
 </script>
 
