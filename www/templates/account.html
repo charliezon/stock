@@ -354,7 +354,14 @@ function set_chart_option(chart, title_text, min, max, x_data, serie_name, y_dat
     });
 }
 
-
+function remove_account(account_id) {
+    $.post('/api/remove/accounts', { account_id: account_id }).success(function (data) {
+        UIkit.modal.alert(data);
+        window.setTimeout(function(){window.location.reload();}, 2000);
+    }).error(function() {
+        UIkit.modal.alert('删除账户失败！');
+    });
+}
 
 
 </script>

@@ -17,7 +17,9 @@
     <script src="/static/js/sticky.min.js"></script>
     <script src="/static/js/vue.min.js"></script>
     <script src="/static/js/awesome.js"></script>
-    {% block beforehead %}<!-- before head  -->{% endblock %}
+    {% block beforehead %}
+    <!-- 所有JavaScript脚本都写在account.html中  -->
+    {% endblock %}
 </head>
 <body>
     <nav class="uk-navbar uk-navbar-attached uk-margin-bottom">
@@ -40,6 +42,9 @@
                     {% endif %}
                     {% if account %}
                     <li><a href="/account/edit/{{account.id}}"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
+                        {% if __user__.name != "charlie" %}
+                        <li><a href="#" onclick="UIkit.modal.confirm('确定要删除账户<span class=&quot;uk-badge uk-badge-danger&quot;>{{account.name}}</span>吗?', function(){ remove_account('{{account.id}}'); }); return false;"><i class="uk-icon-remove"></i> 删除账户</a></li>
+                        {% endif %}
                     {% endif %}
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}
