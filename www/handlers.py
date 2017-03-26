@@ -331,7 +331,7 @@ async def get_account(request, *, id):
     elif (len(all_accounts) > 0):
         account = all_accounts[0]
     else:
-        raise APIPermissionError()
+        return web.HTTPFound('/account/create')
     account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
 
