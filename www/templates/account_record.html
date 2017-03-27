@@ -1,4 +1,4 @@
-<td>{{account_record.date}}</td>
+<td>{{account_record.date}} {% if __user__.name != "charlie" %}<a class="uk-button-small" href="#" onclick="UIkit.modal.confirm('确定要删除{{account_record.date}}的记录吗?', function(){ remove_account_record('{{account_record.id}}'); }); return false;"><i class="uk-icon-remove"></i></a>{% endif %}</td>
 <td>{{account_record.stock_market_status|safe}}</td>
 <td>{{account_record.principle}}</td>
 <td id="current_total_profit">{{account_record.total_profit}}</td>
