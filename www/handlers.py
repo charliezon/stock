@@ -1131,10 +1131,12 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                 stock_operation=False,
                 trade_series='0',
                 stock_date=date)
+            rows = 0
             rows = await stock_trade.save(conn)
             if rows != 1:
                 raise APIValueError('stock_name', '卖出失败')
 
+            rows = 0
             if stock_amount == exist_stocks[0].stock_amount:
                 buy_date = exist_stocks[0].stock_buy_date
                 trade_series = exist_stocks[0].id
@@ -1167,6 +1169,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                 for stock in stocks:
                     float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                 account_record.float_profit_lost = round_float(float_profit_lost)
+                rows = 0
                 rows = await account_record.update(conn)
                 if (rows == 1):
                     await conn.commit()
