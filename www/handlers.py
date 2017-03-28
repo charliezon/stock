@@ -1165,9 +1165,9 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
 
             if (rows == 1):
                 float_profit_lost = 0
-                stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-                for stock in stocks:
-                    float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                # stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+                # for stock in stocks:
+                #     float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                 account_record.float_profit_lost = round_float(float_profit_lost)
                 rows = 0
                 rows = await account_record.update(conn)
