@@ -1157,17 +1157,21 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                 await accounts[0].update(conn)
             else:
                 exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
-                await exist_stocks[0].update(conn)
+                rows = await exist_stocks[0].update(conn)
+                if rows != 1:
+                    raise APIValueError('stock_name', '卖出失败')
 
-            float_profit_lost = 0
-            stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-            for stock in stocks:
-                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
-            
-            account_record.float_profit_lost = round_float(float_profit_lost)
-
-            await account_record.update(conn)
-            await conn.commit()
+            if (rows == 1):
+                float_profit_lost = 0
+                stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+                for stock in stocks:
+                    float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                account_record.float_profit_lost = round_float(float_profit_lost)
+                rows = await account_record.update(conn)
+                if (rows == 1):
+                    await conn.commit()
+                else:
+                    raise APIValueError('stock_name', '卖出失败')
         except BaseException as e:
             await conn.rollback()
             raise APIValueError('stock_name', '卖出失败')
