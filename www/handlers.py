@@ -1024,6 +1024,8 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
                     stock_buy_date=date)
                 await new_stock.save(conn)
 
+            await conn.commit()
+
             float_profit_lost = 0
             stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
             for stock in stocks:
@@ -1163,11 +1165,12 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                 if rows != 1:
                     raise APIValueError('stock_name', '卖出失败')
 
+            await conn.commit()
             if (rows == 1):
                 float_profit_lost = 0
-                # stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-                # for stock in stocks:
-                #     float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+                for stock in stocks:
+                    float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                 account_record.float_profit_lost = round_float(float_profit_lost)
                 rows = 0
                 rows = await account_record.update(conn)
