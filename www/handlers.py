@@ -244,6 +244,7 @@ async def find_account_record(account_id, date):
                         total_profit=pre_account_records[0].total_profit,
                         principle=pre_account_records[0].principle)
                     await account_record.save(conn)
+                    await conn.commit()
 
                     stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
                     if len(stocks) > 0:
@@ -267,12 +268,14 @@ async def find_account_record(account_id, date):
                             total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
                             float_profit_lost = float_profit_lost + (new_stock.stock_current_price-new_stock.stock_buy_price)*new_stock.stock_amount - compute_fee(True, account.commission_rate, new_stock.stock_code, new_stock.stock_buy_price, new_stock.stock_amount)
                             await new_stock.save(conn)
+                        await conn.commit()
                         account_record.total_stock_value = total_stock_value
                         account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
                         account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
                         account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
                         account_record.float_profit_lost = round_float(float_profit_lost)
                         await account_record.update(conn)
+                        await conn.commit()
                 except Error as e:
                     raise APIPermissionError()
             else:
@@ -290,13 +293,14 @@ async def find_account_record(account_id, date):
                         total_stock_value = total_stock_value + stock.stock_amount * stock.stock_current_price
                         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                         await stock.update(conn)
+                    await conn.commit()
                     account_record.total_stock_value = total_stock_value
                     account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
                     account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
                     account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
                     account_record.float_profit_lost = round_float(float_profit_lost)
                     await account_record.update(conn)
-            await conn.commit()
+                    await conn.commit()
         except BaseException as e:
             await conn.rollback()
             raise
@@ -616,7 +620,6 @@ async def get_account_record(request, *, account_id, date, stock_amount):
                         current_price = get_current_price(stock.stock_code, date)
                         if current_price:
                             stock.stock_current_price = current_price
-                            #stock.stock_current_price = int(random.uniform(1, 100)*100)/100
                             await stock.update(conn)
                             price_update = True
                         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
@@ -1137,6 +1140,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
             rows = await stock_trade.save(conn)
             if rows != 1:
                 raise APIValueError('stock_name', '卖出失败')
+            await conn.commit()
 
             rows = 0
             if stock_amount == exist_stocks[0].stock_amount:
@@ -1145,6 +1149,7 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                 rows = await exist_stocks[0].remove(conn)
                 if rows != 1:
                     raise APIValueError('stock_name', '卖出失败')
+                await conn.commit()
                 stock_trades = await StockTradeRecord.findAll('account_id=? and stock_code=? and stock_date>=? and trade_series=?', [accounts[0].id, stock_code, buy_date, '0'])
                 profit = 0
                 for trade in stock_trades:
@@ -1154,18 +1159,19 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                         profit = profit + trade.stock_amount*trade.stock_price - compute_fee(False, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
                     trade.trade_series = trade_series
                     await trade.update(conn)
+                    await conn.commit()
                 if profit>0:
                     accounts[0].success_times = accounts[0].success_times + 1;
                 else:
                     accounts[0].fail_times = accounts[0].fail_times + 1;
                 await accounts[0].update(conn)
+                await conn.commit()
             else:
                 exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
                 rows = await exist_stocks[0].update(conn)
                 if rows != 1:
                     raise APIValueError('stock_name', '卖出失败')
-
-            await conn.commit()
+                await conn.commit()
             if (rows == 1):
                 float_profit_lost = 0
                 stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
@@ -1763,6 +1769,7 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                                 method_2=method_2,
                                 recommendation='')
                 await dp.save(conn)
+            await conn.commit()
             r = await get_recommend(dp)
             dp.recommendation = r
             await dp.update(conn)
