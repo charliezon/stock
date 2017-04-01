@@ -47,8 +47,8 @@ configs = {
         'stock_trade_items_on_page': 20,
         'param_items_on_page': 20,
         'refresh_interval': 0.5,
-        'max_stock_hold_days_method_1': 25,
-        'max_stock_hold_days_method_2': 15
+        'max_stock_hold_days_method_1': 30,
+        'max_stock_hold_days_method_2': 20
     },
 
 }
