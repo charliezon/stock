@@ -512,7 +512,6 @@ async def get_account(request, *, id):
                         bought = True
         if not bought:
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
-    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆可买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span>只能牛市买')
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
