@@ -743,7 +743,7 @@ async def api_get_total_profit(request, *, account_id):
 
 @asyncio.coroutine
 @post('/api/modify/account')
-async def api_modify_account(request, *, id, name, commission_rate):
+async def api_modify_account(request, *, id, name, buy_strategy, sell_strategy, commission_rate):
     must_log_in(request)
     account = await Account.find(id)
     if not account:
@@ -752,6 +752,10 @@ async def api_modify_account(request, *, id, name, commission_rate):
         raise APIValueError('name', '没有操作该账户的权限')
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
+    if not buy_strategy or not buy_strategy.strip():
+        raise APIValueError('buy_strategy', '买入策略不能为空')
+    if not sell_strategy or not sell_strategy.strip():
+        raise APIValueError('sell_strategy', '卖出策略不能为空')
     accounts = await Account.findAll('name=?', [name.strip()])
     if len(accounts) > 0:
         for a in accounts:
@@ -764,6 +768,8 @@ async def api_modify_account(request, *, id, name, commission_rate):
     if commission_rate < 0:
         raise APIValueError('commission_rate', '手续费率不能小于0')
     account.name = name.strip()
+    account.buy_strategy = buy_strategy.strip()
+    account.sell_strategy = sell_strategy.strip()
     account.commission_rate = commission_rate
     async with get_pool().get() as conn:
         await conn.begin()
@@ -777,13 +783,17 @@ async def api_modify_account(request, *, id, name, commission_rate):
 
 @asyncio.coroutine
 @post('/api/accounts')
-async def api_create_account(request, *, name, commission_rate, initial_funding, date):
+async def api_create_account(request, *, name, buy_strategy, sell_strategy, commission_rate, initial_funding, date):
     must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
     accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
     if len(accounts) > 0:
         raise APIValueError('name', '账户名称已被用')
+    if not buy_strategy or not buy_strategy.strip():
+        raise APIValueError('buy_strategy', '买入策略不能为空')
+    if not sell_strategy or not sell_strategy.strip():
+        raise APIValueError('sell_strategy', '卖出策略不能为空')
     try:
         commission_rate = float(commission_rate)
     except ValueError as e:
@@ -803,7 +813,7 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
     async with get_pool().get() as conn:
         await conn.begin()
         try:
-            account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+            account = Account(user_id=request.__user__.id, name=name.strip(), buy_strategy=buy_strategy.strip(), sell_strategy=sell_strategy.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
             await account.save(conn)
             account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=round_float(initial_funding), total_stock_value=0, total_assets=round_float(initial_funding), float_profit_lost=0, total_profit=0, principle=round_float(initial_funding))
             await account_record.save(conn)
@@ -815,13 +825,17 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
 
 @asyncio.coroutine
 @post('/api/advanced/accounts')
-async def api_advanced_create_account(request, *, name, commission_rate, initial_funding, initial_bank_funding, initial_security_funding, date):
+async def api_advanced_create_account(request, *, name, buy_strategy, sell_strategy, commission_rate, initial_funding, initial_bank_funding, initial_security_funding, date):
     must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
     accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
     if len(accounts) > 0:
         raise APIValueError('name', '账户名称已被用')
+    if not buy_strategy or not buy_strategy.strip():
+        raise APIValueError('buy_strategy', '买入策略不能为空')
+    if not sell_strategy or not sell_strategy.strip():
+        raise APIValueError('sell_strategy', '卖出策略不能为空')
     try:
         commission_rate = float(commission_rate)
     except ValueError as e:
@@ -853,7 +867,7 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
     async with get_pool().get() as conn:
         await conn.begin()
         try:
-            account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+            account = Account(user_id=request.__user__.id, name=name.strip(), buy_strategy=buy_strategy.strip(), sell_strategy=sell_strategy.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
             await account.save(conn)
             account_record = AccountRecord(date=date, 
                                             account_id=account.id, 

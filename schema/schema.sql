@@ -28,6 +28,8 @@ create table accounts (
     `name` varchar(50) not null,
     `commission_rate` real not null,
     `initial_funding` real not null,
+    `buy_strategy` varchar(500) not null,
+    `sell_strategy` varchar(500) not null,
     `success_times` int(100) not null,
     `fail_times` int(100) not null,
     `created_at` real not null,

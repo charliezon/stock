@@ -60,6 +60,8 @@ class Account(Model):
     name = StringField(ddl='varchar(50)')
     commission_rate = FloatField()
     initial_funding = FloatField()
+    buy_strategy = StringField(ddl='varchar(500)')
+    sell_strategy = StringField(ddl='varchar(500)')
     success_times = IntegerField(default=0)
     fail_times = IntegerField(default=0)
     created_at = FloatField(default=time.time)

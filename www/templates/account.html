@@ -268,6 +268,8 @@ function update_today_account_record(date) {
         $('#'+date+'-record').html(data);
         {% if most_recent_account_record and account %}
             content = '<li>名称：{{account.name}}</li>'+
+                        '<li>买入策略：{{account.buy_strategy}}</li>'+
+                        '<li>卖出策略：{{account.sell_strategy}}</li>'+
                         '<li>佣金率：{{account.commission_rate}}</li>'+
                         '<li>仓位：'+$('#current_stock_position').html()+'</li>'+
                         '<li>银证资金：{{most_recent_account_record.security_funding}}</li>'+
@@ -385,6 +387,8 @@ function remove_account_record(account_record_id) {
                 <ul id="account_info">
                     {% if most_recent_account_record and account %}
                     <li>名称：{{account.name}}</li>
+                    <li>买入策略：{{account.buy_strategy}}</li>
+                    <li>卖出策略：{{account.sell_strategy}}</li>
                     <li>佣金率：{{account.commission_rate}}</li>
                     <li>仓位：{{most_recent_account_record.stock_position}}%</li>
                     <li>银证资金：{{most_recent_account_record.security_funding}}</li>
