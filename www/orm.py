@@ -241,3 +241,14 @@ class Model(dict, metaclass=ModelMetaclass):
         except BaseException as e:
             raise
         return rows
+
+    @classmethod
+    async def removeAll(self, conn, where, args):
+        sql = 'delete from ' + self.__table__ + ' where ' + where
+        try:
+            async with conn.cursor(aiomysql.DictCursor) as cur:
+                await cur.execute(sql.replace('?', '%s'), args)
+                affected = cur.rowcount
+        except BaseException as e:
+            raise
+        return affected

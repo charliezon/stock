@@ -244,6 +244,7 @@ async def find_account_record(account_id, date):
                         total_profit=pre_account_records[0].total_profit,
                         principle=pre_account_records[0].principle)
                     await account_record.save(conn)
+                    await conn.commit()
 
                     stocks = await StockHoldRecord.findAll('account_record_id=?', [pre_account_records[0].id])
                     if len(stocks) > 0:
@@ -267,12 +268,14 @@ async def find_account_record(account_id, date):
                             total_stock_value = total_stock_value + new_stock.stock_amount * new_stock.stock_current_price
                             float_profit_lost = float_profit_lost + (new_stock.stock_current_price-new_stock.stock_buy_price)*new_stock.stock_amount - compute_fee(True, account.commission_rate, new_stock.stock_code, new_stock.stock_buy_price, new_stock.stock_amount)
                             await new_stock.save(conn)
+                        await conn.commit()
                         account_record.total_stock_value = total_stock_value
                         account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
                         account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
                         account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
                         account_record.float_profit_lost = round_float(float_profit_lost)
                         await account_record.update(conn)
+                        await conn.commit()
                 except Error as e:
                     raise APIPermissionError()
             else:
@@ -290,13 +293,14 @@ async def find_account_record(account_id, date):
                         total_stock_value = total_stock_value + stock.stock_amount * stock.stock_current_price
                         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                         await stock.update(conn)
+                    await conn.commit()
                     account_record.total_stock_value = total_stock_value
                     account_record.total_assets = round_float(account_record.security_funding + account_record.bank_funding + account_record.total_stock_value)
                     account_record.total_profit = round_float(account_record.total_assets - account_record.principle)
                     account_record.stock_position = round_float(account_record.total_stock_value * 100 / account_record.total_assets)
                     account_record.float_profit_lost = round_float(float_profit_lost)
                     await account_record.update(conn)
-            await conn.commit()
+                    await conn.commit()
         except BaseException as e:
             await conn.rollback()
             raise
@@ -331,7 +335,7 @@ async def get_account(request, *, id):
     elif (len(all_accounts) > 0):
         account = all_accounts[0]
     else:
-        raise APIPermissionError()
+        return web.HTTPFound('/account/create')
     account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
 
@@ -508,7 +512,6 @@ async def get_account(request, *, id):
                         bought = True
         if not bought:
             advices.append('<span style="color:red"><strong>今日不能买入股票！</strong></span>')
-    advices.append('<span class="uk-badge uk-badge-success"><strong>模拟：</strong></span>牛熊皆可买；<span class="uk-badge uk-badge-danger"><strong>真实：</strong></span>只能牛市买')
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
@@ -532,6 +535,7 @@ async def get_account(request, *, id):
         'add_security_funding_action' : '/api/add_security_funding',
         'minus_security_funding_action' : '/api/minus_security_funding',
         'modify_security_funding_action' : '/api/modify_security_funding',
+        'exit_right_action': '/api/exit_right',
         'up_to_date_action' : '/api/up_to_date',
         'account_record_items_on_page' : configs.stock.account_record_items_on_page,
         'stock_trade_items_on_page' : configs.stock.stock_trade_items_on_page,
@@ -616,7 +620,6 @@ async def get_account_record(request, *, account_id, date, stock_amount):
                         current_price = get_current_price(stock.stock_code, date)
                         if current_price:
                             stock.stock_current_price = current_price
-                            #stock.stock_current_price = int(random.uniform(1, 100)*100)/100
                             await stock.update(conn)
                             price_update = True
                         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
@@ -740,7 +743,7 @@ async def api_get_total_profit(request, *, account_id):
 
 @asyncio.coroutine
 @post('/api/modify/account')
-async def api_modify_account(request, *, id, name, commission_rate):
+async def api_modify_account(request, *, id, name, buy_strategy, sell_strategy, commission_rate):
     must_log_in(request)
     account = await Account.find(id)
     if not account:
@@ -749,6 +752,10 @@ async def api_modify_account(request, *, id, name, commission_rate):
         raise APIValueError('name', '没有操作该账户的权限')
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
+    if not buy_strategy or not buy_strategy.strip():
+        raise APIValueError('buy_strategy', '买入策略不能为空')
+    if not sell_strategy or not sell_strategy.strip():
+        raise APIValueError('sell_strategy', '卖出策略不能为空')
     accounts = await Account.findAll('name=?', [name.strip()])
     if len(accounts) > 0:
         for a in accounts:
@@ -761,6 +768,8 @@ async def api_modify_account(request, *, id, name, commission_rate):
     if commission_rate < 0:
         raise APIValueError('commission_rate', '手续费率不能小于0')
     account.name = name.strip()
+    account.buy_strategy = buy_strategy.strip()
+    account.sell_strategy = sell_strategy.strip()
     account.commission_rate = commission_rate
     async with get_pool().get() as conn:
         await conn.begin()
@@ -774,13 +783,17 @@ async def api_modify_account(request, *, id, name, commission_rate):
 
 @asyncio.coroutine
 @post('/api/accounts')
-async def api_create_account(request, *, name, commission_rate, initial_funding, date):
+async def api_create_account(request, *, name, buy_strategy, sell_strategy, commission_rate, initial_funding, date):
     must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
     accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
     if len(accounts) > 0:
         raise APIValueError('name', '账户名称已被用')
+    if not buy_strategy or not buy_strategy.strip():
+        raise APIValueError('buy_strategy', '买入策略不能为空')
+    if not sell_strategy or not sell_strategy.strip():
+        raise APIValueError('sell_strategy', '卖出策略不能为空')
     try:
         commission_rate = float(commission_rate)
     except ValueError as e:
@@ -800,7 +813,7 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
     async with get_pool().get() as conn:
         await conn.begin()
         try:
-            account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+            account = Account(user_id=request.__user__.id, name=name.strip(), buy_strategy=buy_strategy.strip(), sell_strategy=sell_strategy.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
             await account.save(conn)
             account_record = AccountRecord(date=date, account_id=account.id, stock_position=0, security_funding=0, bank_funding=round_float(initial_funding), total_stock_value=0, total_assets=round_float(initial_funding), float_profit_lost=0, total_profit=0, principle=round_float(initial_funding))
             await account_record.save(conn)
@@ -812,13 +825,17 @@ async def api_create_account(request, *, name, commission_rate, initial_funding,
 
 @asyncio.coroutine
 @post('/api/advanced/accounts')
-async def api_advanced_create_account(request, *, name, commission_rate, initial_funding, initial_bank_funding, initial_security_funding, date):
+async def api_advanced_create_account(request, *, name, buy_strategy, sell_strategy, commission_rate, initial_funding, initial_bank_funding, initial_security_funding, date):
     must_log_in(request)
     if not name or not name.strip():
         raise APIValueError('name', '账户名称不能为空')
     accounts = await Account.findAll('name=? and user_id=?', [name.strip(), request.__user__.id])
     if len(accounts) > 0:
         raise APIValueError('name', '账户名称已被用')
+    if not buy_strategy or not buy_strategy.strip():
+        raise APIValueError('buy_strategy', '买入策略不能为空')
+    if not sell_strategy or not sell_strategy.strip():
+        raise APIValueError('sell_strategy', '卖出策略不能为空')
     try:
         commission_rate = float(commission_rate)
     except ValueError as e:
@@ -850,7 +867,7 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
     async with get_pool().get() as conn:
         await conn.begin()
         try:
-            account = Account(user_id=request.__user__.id, name=name.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
+            account = Account(user_id=request.__user__.id, name=name.strip(), buy_strategy=buy_strategy.strip(), sell_strategy=sell_strategy.strip(), commission_rate=commission_rate, initial_funding=initial_funding)
             await account.save(conn)
             account_record = AccountRecord(date=date, 
                                             account_id=account.id, 
@@ -868,6 +885,65 @@ async def api_advanced_create_account(request, *, name, commission_rate, initial
             await conn.rollback()
             raise APIValueError('name', '创建账户失败')
     return account
+
+@asyncio.coroutine
+@post('/api/remove/accounts')
+async def api_remove_account(request, *, account_id):
+    must_log_in(request)
+    if not account_id or not account_id.strip():
+        return '删除账户失败(1)'
+    account = await Account.find(account_id)
+    if not account:
+        return '删除账户失败(2)'
+    if (not request.__user__.admin and request.__user__.id != account.user_id):
+        return '删除账户失败(3)'
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await AccountAssetChange.removeAll(conn, 'account_id=?', [account.id])
+            await StockTradeRecord.removeAll(conn, 'account_id=?', [account.id])
+            account_records = await AccountRecord.findAll('account_id=?', [account.id])
+            for account_record in account_records:
+                await StockHoldRecord.removeAll(conn, 'account_record_id=?', [account_record.id])
+            await AccountRecord.removeAll(conn, 'account_id=?', [account.id])
+            await account.remove(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            return '删除账户失败(4)'
+    return '删除账户成功'
+
+@asyncio.coroutine
+@post('/api/remove/account_records')
+async def api_remove_account_record(request, *, account_record_id):
+    must_log_in(request)
+    if not account_record_id or not account_record_id.strip():
+        return '删除账户记录失败(1)'
+    account_record = await AccountRecord.find(account_record_id)
+    if not account_record:
+        return '删除账户记录失败(2)'
+    account = await Account.find(account_record.account_id)
+    if not account:
+        return '删除账户记录失败(3)'
+    if (not request.__user__.admin and request.__user__.id != account.user_id):
+        return '删除账户记录失败(4)'
+    all_account_records = await AccountRecord.findAll('account_id=?', [account.id])
+    if len(all_account_records) == 1:
+        return '仅有一条记录，不许删除'
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await StockTradeRecord.removeAll(conn, 'account_id=? and stock_date=?', [account.id, account_record.date])
+            await AccountAssetChange.removeAll(conn, 'account_id=? and date=?', [account.id, account_record.date])
+            await StockHoldRecord.removeAll(conn, 'account_record_id=?', [account_record_id])
+            await account_record.remove(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            return '删除账户记录失败(5)'
+    return '删除账户记录成功'
 
 @asyncio.coroutine
 @post('/api/buy')
@@ -964,6 +1040,8 @@ async def api_buy(request, *, stock_name, stock_code, stock_price, stock_amount,
                     stock_sell_price=sell_price,
                     stock_buy_date=date)
                 await new_stock.save(conn)
+
+            await conn.commit()
 
             float_profit_lost = 0
             stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
@@ -1072,16 +1150,20 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                 stock_operation=False,
                 trade_series='0',
                 stock_date=date)
+            rows = 0
             rows = await stock_trade.save(conn)
             if rows != 1:
                 raise APIValueError('stock_name', '卖出失败')
+            await conn.commit()
 
+            rows = 0
             if stock_amount == exist_stocks[0].stock_amount:
                 buy_date = exist_stocks[0].stock_buy_date
                 trade_series = exist_stocks[0].id
                 rows = await exist_stocks[0].remove(conn)
                 if rows != 1:
                     raise APIValueError('stock_name', '卖出失败')
+                await conn.commit()
                 stock_trades = await StockTradeRecord.findAll('account_id=? and stock_code=? and stock_date>=? and trade_series=?', [accounts[0].id, stock_code, buy_date, '0'])
                 profit = 0
                 for trade in stock_trades:
@@ -1091,24 +1173,31 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
                         profit = profit + trade.stock_amount*trade.stock_price - compute_fee(False, accounts[0].commission_rate, trade.stock_code, trade.stock_price, trade.stock_amount)
                     trade.trade_series = trade_series
                     await trade.update(conn)
+                    await conn.commit()
                 if profit>0:
                     accounts[0].success_times = accounts[0].success_times + 1;
                 else:
                     accounts[0].fail_times = accounts[0].fail_times + 1;
                 await accounts[0].update(conn)
+                await conn.commit()
             else:
                 exist_stocks[0].stock_amount = exist_stocks[0].stock_amount - stock_amount
-                await exist_stocks[0].update(conn)
-
-            float_profit_lost = 0
-            stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
-            for stock in stocks:
-                float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
-            
-            account_record.float_profit_lost = round_float(float_profit_lost)
-
-            await account_record.update(conn)
-            await conn.commit()
+                rows = await exist_stocks[0].update(conn)
+                if rows != 1:
+                    raise APIValueError('stock_name', '卖出失败')
+                await conn.commit()
+            if (rows == 1):
+                float_profit_lost = 0
+                stocks = await StockHoldRecord.findAll('account_record_id=?', [account_record.id])
+                for stock in stocks:
+                    float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, accounts[0].commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
+                account_record.float_profit_lost = round_float(float_profit_lost)
+                rows = 0
+                rows = await account_record.update(conn)
+                if (rows == 1):
+                    await conn.commit()
+                else:
+                    raise APIValueError('stock_name', '卖出失败')
         except BaseException as e:
             await conn.rollback()
             raise APIValueError('stock_name', '卖出失败')
@@ -1116,6 +1205,82 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     return accounts[0]
 
 
+@asyncio.coroutine
+@post('/api/exit_right')
+async def api_exit_right(request, *, stock_name, stock_code, stock_amount, date, account_id):
+    must_log_in(request)
+    if (not stock_name or not stock_name.strip()) and (not stock_code or not stock_code.strip()):
+        raise APIValueError('stock_name', '股票名称和代码不能都为空')
+    if stock_name and stock_name.strip():
+        stock_name = stock_name.strip()
+        stock_inf = get_stock_via_name(stock_name)
+        if not stock_inf:
+            raise APIValueError('stock_name', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_name', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_name', '股票不唯一')
+        stock_code = stock_inf[0]['stock_code']
+    elif stock_code and stock_code.strip():
+        stock_code = stock_code.strip()
+        stock_inf = get_stock_via_code(stock_code)
+        if not stock_inf:
+            raise APIValueError('stock_code', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_code', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_code', '股票不唯一')
+        stock_name = stock_inf[0]['stock_name']
+    try:
+        stock_amount = int(stock_amount)
+    except ValueError as e:
+        raise APIValueError('stock_amount', '股票数量填写不正确')
+    if stock_amount <=  0:
+        raise APIValueError('stock_amount', '股票数量必须大于0')
+    if stock_amount % 100 != 0:
+        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    date = date.strip()
+
+    if date > today():
+        raise APIValueError('date', '日期不能晚于今天')
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    most_recent_account_record = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date desc', limit=1)
+    if len(most_recent_account_record) <= 0:
+        raise APIValueError('date', '尚未持有任何股票')
+    if date < most_recent_account_record[0].date:
+        raise APIValueError('date', '日期不能早于最近持股日期')
+
+    try:
+        account_record = await find_account_record(account_id, date)
+    except BaseException as e:
+        raise APIPermissionError()
+    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code])
+    if len(exist_stocks) <= 0:
+        raise APIValueError('stock_amount', '未持有该股票')
+    if exist_stocks[0].stock_amount >= stock_amount:
+        raise APIValueError('stock_amount', '除权后股票数量应大于当前持有数量')
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            rows = 0
+            exist_stocks[0].stock_amount = stock_amount
+            rows = await exist_stocks[0].update(conn)
+            if rows != 1:
+                raise APIValueError('stock_name', '除权失败')
+            await conn.commit()
+            account_record = await find_account_record(account_id, date)
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('stock_name', '除权失败')
+    return accounts[0]
 
 
 @asyncio.coroutine
@@ -1694,6 +1859,7 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
                                 method_2=method_2,
                                 recommendation='')
                 await dp.save(conn)
+            await conn.commit()
             r = await get_recommend(dp)
             dp.recommendation = r
             await dp.update(conn)
