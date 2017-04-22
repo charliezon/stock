@@ -535,6 +535,7 @@ async def get_account(request, *, id):
         'add_security_funding_action' : '/api/add_security_funding',
         'minus_security_funding_action' : '/api/minus_security_funding',
         'modify_security_funding_action' : '/api/modify_security_funding',
+        'exit_right_action': '/api/exit_right',
         'up_to_date_action' : '/api/up_to_date',
         'account_record_items_on_page' : configs.stock.account_record_items_on_page,
         'stock_trade_items_on_page' : configs.stock.stock_trade_items_on_page,
@@ -1204,6 +1205,82 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
     return accounts[0]
 
 
+@asyncio.coroutine
+@post('/api/exit_right')
+async def api_exit_right(request, *, stock_name, stock_code, stock_amount, date, account_id):
+    must_log_in(request)
+    if (not stock_name or not stock_name.strip()) and (not stock_code or not stock_code.strip()):
+        raise APIValueError('stock_name', '股票名称和代码不能都为空')
+    if stock_name and stock_name.strip():
+        stock_name = stock_name.strip()
+        stock_inf = get_stock_via_name(stock_name)
+        if not stock_inf:
+            raise APIValueError('stock_name', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_name', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_name', '股票不唯一')
+        stock_code = stock_inf[0]['stock_code']
+    elif stock_code and stock_code.strip():
+        stock_code = stock_code.strip()
+        stock_inf = get_stock_via_code(stock_code)
+        if not stock_inf:
+            raise APIValueError('stock_code', '出错了')
+        if len(stock_inf)<1:
+            raise APIValueError('stock_code', '股票不存在')
+        elif len(stock_inf)>1:
+            raise APIValueError('stock_code', '股票不唯一')
+        stock_name = stock_inf[0]['stock_name']
+    try:
+        stock_amount = int(stock_amount)
+    except ValueError as e:
+        raise APIValueError('stock_amount', '股票数量填写不正确')
+    if stock_amount <=  0:
+        raise APIValueError('stock_amount', '股票数量必须大于0')
+    if stock_amount % 100 != 0:
+        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    date = date.strip()
+
+    if date > today():
+        raise APIValueError('date', '日期不能晚于今天')
+    accounts = await Account.findAll('user_id=? and id=?', [request.__user__.id, account_id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    most_recent_account_record = await AccountRecord.findAll('account_id=?', [account_id], orderBy='date desc', limit=1)
+    if len(most_recent_account_record) <= 0:
+        raise APIValueError('date', '尚未持有任何股票')
+    if date < most_recent_account_record[0].date:
+        raise APIValueError('date', '日期不能早于最近持股日期')
+
+    try:
+        account_record = await find_account_record(account_id, date)
+    except BaseException as e:
+        raise APIPermissionError()
+    exist_stocks = await StockHoldRecord.findAll('account_record_id=? and stock_code=?', [account_record.id, stock_code])
+    if len(exist_stocks) <= 0:
+        raise APIValueError('stock_amount', '未持有该股票')
+    if exist_stocks[0].stock_amount >= stock_amount:
+        raise APIValueError('stock_amount', '除权后股票数量应大于当前持有数量')
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            rows = 0
+            exist_stocks[0].stock_amount = stock_amount
+            rows = await exist_stocks[0].update(conn)
+            if rows != 1:
+                raise APIValueError('stock_name', '除权失败')
+            await conn.commit()
+            account_record = await find_account_record(account_id, date)
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('stock_name', '除权失败')
+    return accounts[0]
 
 
 @asyncio.coroutine
