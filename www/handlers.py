@@ -1106,8 +1106,8 @@ async def api_sell(request, *, stock_name, stock_code, stock_price, stock_amount
         raise APIValueError('stock_amount', '股票数量填写不正确')
     if stock_amount <=  0:
         raise APIValueError('stock_amount', '股票数量必须大于0')
-    if stock_amount % 100 != 0:
-        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+#    if stock_amount % 100 != 0:
+#        raise APIValueError('stock_amount', '股票数量必须为100的整数')
     if date is None:
         raise APIValueError('date', '日期不能为空')
     if date.strip() == '':
@@ -1237,8 +1237,8 @@ async def api_exit_right(request, *, stock_name, stock_code, stock_amount, date,
         raise APIValueError('stock_amount', '股票数量填写不正确')
     if stock_amount <=  0:
         raise APIValueError('stock_amount', '股票数量必须大于0')
-    if stock_amount % 100 != 0:
-        raise APIValueError('stock_amount', '股票数量必须为100的整数')
+#    if stock_amount % 100 != 0:
+#        raise APIValueError('stock_amount', '股票数量必须为100的整数')
     if date is None:
         raise APIValueError('date', '日期不能为空')
     if date.strip() == '':
