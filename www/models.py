@@ -17,6 +17,22 @@ from decimal import Decimal as D
 def next_id():
     return '%015d%s000' % (int(time.time() * 1000), uuid.uuid4().hex)
 
+def this_year():
+    return time.strftime("%Y", time.localtime())
+
+def this_month():
+    return time.strftime("%Y-%m", time.localtime())
+
+def last_month(month):
+    y, m = month.split('-')
+    if int(m) > 10:
+        return y + '-' + str((int(m)-1))
+    elif int(m) > 1:
+        return y + '-0' + str((int(m)-1))
+    else:
+        return str((int(y)-1)) + '-12'
+
+
 def today():
     return time.strftime("%Y-%m-%d", time.localtime())
 

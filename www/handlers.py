@@ -12,11 +12,12 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
-from handler_help import get_stock_method
+from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate
 from orm import get_pool
+from operator import attrgetter
 
 COOKIE_NAME = 'stocksession'
 _COOKIE_KEY = configs.session.secret
@@ -139,6 +140,68 @@ async def advanced_create_account(request):
         '__template__': 'advanced_create_account.html',
         'accounts': all_accounts,
         'action': '/api/advanced/accounts'
+    }
+
+
+@asyncio.coroutine
+@get('/profit_rank')
+async def profit_rank(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    ranks = []
+
+    y, m = this_month().split('-')
+    accounts = await Account.findAll('user_id=?', [request.__user__.id])
+
+    account_ids = []
+    account_id_strs = []
+    for account in accounts:
+        account_ids.append(account.id)
+        account_id_strs.append('account_id=?')
+    records = await AccountRecord.findAll(' or '.join(account_id_strs), account_ids, orderBy='date desc', limit=1)
+    if len(records) > 0:
+        y, m, d = records[0].date.split('-')
+
+    while True:
+        m_accounts = []
+        for account in accounts:
+            profit_rate = await get_profit_rate_by_month(account.id, y, m)
+            if profit_rate:
+                m_accounts.append(profit_rate)
+        m_accounts.sort(key=lambda x : x.get('profit_rate'), reverse=True)
+        if len(m_accounts) == 0:
+            break
+        else:
+            ranks.append({
+                'year': y,
+                'month': m,
+                'accounts': m_accounts
+            })
+            y, m = last_month(y + '-' + m).split('-')
+    return {
+        '__template__': 'profit_rank.html',
+        'ranks': ranks
+    }
+
+@asyncio.coroutine
+@get('/profit_rank/{start_date}/{end_date}')
+async def profit_rank_2(request, *, start_date, end_date):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+
+    accounts = await Account.findAll('user_id=?', [request.__user__.id])
+
+    rank = []
+    for account in accounts:
+        profit_rate = await get_profit_rate(account.id, start_date, end_date)
+        if profit_rate:
+            rank.append(profit_rate)
+    rank.sort(key=lambda x : x.get('profit_rate'), reverse=True)
+    return {
+        '__template__': 'profit_rank.html',
+        'rank': rank,
+        'start_date': start_date,
+        'end_date': end_date
     }
 
 @asyncio.coroutine

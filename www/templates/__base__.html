@@ -39,6 +39,14 @@
                             </ul>
                         </div>
                     </li>
+                    <li class="uk-parent" data-uk-dropdown>
+                        <a href="#0"><i class="uk-icon-bar-chart"></i> 分析账户</a>
+                        <div class="uk-dropdown uk-dropdown-navbar">
+                            <ul class="uk-nav uk-nav-navbar">
+                                <li><a href="/profit_rank"><i class="uk-icon-sort-amount-asc"></i>  收益率排行</a></li>
+                            </ul>
+                        </div>
+                    </li>
                     {% endif %}
                     {% if account %}
                     <li><a href="/account/edit/{{account.id}}"><i class="uk-icon-pencil-square-o"></i> 编辑账户</a></li>
