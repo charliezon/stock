@@ -16,7 +16,8 @@
                     <th>股票</th>
                     <th>数量</th>
                     <th>当前价</th>
-                    <th>卖出价</th>
+                    <th>止盈价</th>
+                    <th>止损价</th>
                 {% endfor %}
             </tr>
         </thead>
@@ -38,6 +39,7 @@
                         <td>{{stock.stock_amount}}</td>
                         <td>{{stock.stock_current_price}}</td>
                         <td>{{stock.stock_sell_price}}</td>
+                        <td>{{stock.stop_loss_price}}</td>
                     {% endfor %}
                 </tr>
             {% endfor %}

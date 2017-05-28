@@ -629,6 +629,8 @@ async def get_account_records(request, *, account_id, page):
         for account_record in account_records:
             stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
             if len(stock_hold_records)>0:
+                for record in stock_hold_records:
+                    record.stop_loss_price = round_float(record.stock_sell_price / 1.04 * 0.9)
                 account_record.stock_hold_records = stock_hold_records
                 if len(stock_hold_records)>max_amount:
                     max_amount = len(stock_hold_records)
@@ -636,7 +638,7 @@ async def get_account_records(request, *, account_id, page):
                 account_record.stock_hold_records = []
         for account_record in account_records:
             for x in range(max_amount-len(account_record.stock_hold_records)):
-                account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+                account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0, 'stop_loss_price':0})
             dp = await DailyParam.find(account_record.date)
             account_record.stock_market_status = '-'
             if dp:
@@ -687,6 +689,7 @@ async def get_account_record(request, *, account_id, date, stock_amount):
                             price_update = True
                         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                         total_stock_value = total_stock_value + stock.stock_current_price*stock.stock_amount
+                        stock.stop_loss_price = round_float(stock.stock_sell_price / 1.04 * 0.9)
                     if price_update:
                         account_record.float_profit_lost = round_float(float_profit_lost)
                         account_record.total_stock_value = round_float(total_stock_value)
@@ -702,7 +705,7 @@ async def get_account_record(request, *, account_id, date, stock_amount):
         else:
             account_record.stock_hold_records = []
         for x in range(stock_amount-len(account_record.stock_hold_records)):
-            account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0})
+            account_record.stock_hold_records.append({'stock_name':'-', 'stock_amount':0, 'stock_current_price':0, 'stock_sell_price':0, 'stop_loss_price':0})
         dp = await DailyParam.find(account_record.date)
         account_record.stock_market_status = '-'
 
