@@ -285,7 +285,7 @@ function load_stock_trades(page) {
 }
 
 function update_today_account_record(date) {
-    stock_amount = ($('#'+date+'-record').find('td').length-10)/4;
+    stock_amount = ($('#'+date+'-record').find('td').length-10)/5;
     $.get('/account_record/{{account.id}}/'+date+'/'+stock_amount).done(function (data) {
         $('#'+date+'-record').html(data);
         {% if most_recent_account_record and account %}
