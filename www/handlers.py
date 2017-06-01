@@ -15,7 +15,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
-from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate
+from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate
 from orm import get_pool
 from operator import attrgetter
 
@@ -168,16 +168,21 @@ async def profit_rank(request):
             profit_rate = await get_profit_rate_by_month(account.id, y, m)
             if profit_rate:
                 m_accounts.append(profit_rate)
-        m_accounts.sort(key=lambda x : x.get('profit_rate'), reverse=True)
         if len(m_accounts) == 0:
             break
-        else:
-            ranks.append({
-                'year': y,
-                'month': m,
-                'accounts': m_accounts
-            })
-            y, m = last_month(y + '-' + m).split('-')
+        shanghai_profit_rate = get_shanghai_profit_rate_by_month(y, m)
+        if shanghai_profit_rate:
+            m_accounts.append(shanghai_profit_rate)
+        shenzhen_profit_rate = get_shenzhen_profit_rate_by_month(y, m)
+        if shenzhen_profit_rate:
+            m_accounts.append(shenzhen_profit_rate)
+        m_accounts.sort(key=lambda x : x.get('profit_rate'), reverse=True)
+        ranks.append({
+            'year': y,
+            'month': m,
+            'accounts': m_accounts
+        })
+        y, m = last_month(y + '-' + m).split('-')
     return {
         '__template__': 'profit_rank.html',
         'ranks': ranks
@@ -196,6 +201,12 @@ async def profit_rank_2(request, *, start_date, end_date):
         profit_rate = await get_profit_rate(account.id, start_date, end_date)
         if profit_rate:
             rank.append(profit_rate)
+    shanghai_profit_rate = get_shanghai_profit_rate(start_date, end_date)
+    if shanghai_profit_rate:
+        rank.append(shanghai_profit_rate)
+    shenzhen_profit_rate = get_shenzhen_profit_rate(start_date, end_date)
+    if shenzhen_profit_rate:
+        rank.append(shenzhen_profit_rate)
     rank.sort(key=lambda x : x.get('profit_rate'), reverse=True)
     return {
         '__template__': 'profit_rank.html',

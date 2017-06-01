@@ -5,6 +5,7 @@ __author__ = 'Chaoliang Zhong'
 
 import asyncio
 from models import DailyParam, AccountRecord, Account, round_float, last_month
+from stock_info import get_index_info
 import logging
 
 @asyncio.coroutine
@@ -62,6 +63,37 @@ async def get_profit_rate(account_id, start_date, end_date):
         'profit': round_float(end_date_profit - start_date_profit),
         'profit_rate': round_float((end_date_profit - start_date_profit) * 100 / average_cost)
     }
+
+def get_shenzhen_profit_rate_by_month(year, month):
+    return get_index_profit_rate_by_month('399001', '深证成指', year, month)
+
+def get_shanghai_profit_rate_by_month(year, month):
+    return get_index_profit_rate_by_month('000001', '上证综指', year, month)
+
+def get_shenzhen_profit_rate(start_date, end_date):
+    return get_index_profit_rate('399001', '深证成指', start_date, end_date)
+
+def get_shanghai_profit_rate(start_date, end_date):
+    return get_index_profit_rate('000001', '上证综指', start_date, end_date)
+
+def get_index_profit_rate_by_month(index, index_name, year, month):
+    last_mon = last_month('-'.join([year, month]))
+    start_date = last_mon+'-31'
+    end_date = '-'.join([year, month, '31'])
+    return get_index_profit_rate(index, index_name, start_date, end_date)
+
+def get_index_profit_rate(index, index_name, start_date, end_date):
+    start_value = get_index_info(index, start_date)
+    end_value = get_index_info(index, end_date)
+    if (start_value and end_value):
+        return {
+            'account_name': index_name,
+            'cost': round_float(start_value),
+            'profit': round_float(end_value - start_value),
+            'profit_rate': round_float((end_value - start_value) * 100 / start_value)
+        }
+    else:
+        return False
 
 @asyncio.coroutine
 async def get_profit(account_id, date):

@@ -10,10 +10,16 @@ from urllib.parse import quote
 from config import configs
 from models import today, round_float
 
+def current_shenzhen_index_info():
+    return current_index_info(get_new_code('399001'))
+
 def current_shanghai_index_info():
+    return current_index_info(get_new_code('000001'))
+
+def current_index_info(index_str):
     result = False
     try:
-        with request.urlopen('http://hq.sinajs.cn/list=s_sh000001') as f:
+        with request.urlopen('http://hq.sinajs.cn/list=s_'+index_str) as f:
             if f.status == 200:
                 data = f.read().decode('gb2312')
                 numbers = data.split(',');
@@ -29,13 +35,19 @@ def current_shanghai_index_info():
     finally:
         return result
 
+def get_shenzhen_index_info(date):
+    return get_index_info('399001', date)
+
 def get_shanghai_index_info(date):
+    return get_index_info('000001', date)
+
+def get_index_info(index_str, date):
     index = False
     if date >= today():
-        index = current_shanghai_index_info()
+        index = current_index_info(get_new_code(index_str))
     else:
         numbers = date.split('-')
-        index = find_close_price('000001', int(numbers[0]), int(numbers[1]), int(numbers[2]))
+        index = find_close_price(index_str, int(numbers[0]), int(numbers[1]), int(numbers[2]))
     return index
 
 def get_new_code(code):
