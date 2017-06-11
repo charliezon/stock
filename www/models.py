@@ -176,3 +176,12 @@ class DailyParam(Model):
     recommendation = StringField(ddl='varchar(50)') # 操作建议
     created_at = FloatField(default=time.time)
 
+class DailyIndex(Model):
+    __table__ = 'daily_index'
+
+    date = StringField(primary_key=True, default=today, ddl='varchar(50)')
+    shanghai_index = FloatField(default=False)
+    shanghai_freeze = BooleanField()
+    shenzhen_index = FloatField()
+    shenzhen_freeze = BooleanField(default=False)
+    created_at = FloatField(default=time.time)

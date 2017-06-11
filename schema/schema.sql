@@ -135,3 +135,14 @@ create table daily_params (
     key `idx_created_at` (`created_at`),
     primary key (`date`)
 ) engine=innodb default charset=utf8;
+
+create table daily_index (
+    `date` varchar(50) not null,
+    `shanghai_index` real not null,
+    `shanghai_freeze` bool null,
+    `shenzhen_index` real not null,
+    `shenzhen_freeze` bool null,
+    `created_at` real not null,
+    key `idx_created_at` (`created_at`),
+    primary key (`date`)
+) engine=innodb default charset=utf8;

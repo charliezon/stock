@@ -4,9 +4,10 @@
 __author__ = 'Chaoliang Zhong'
 
 import asyncio
-from models import DailyParam, AccountRecord, Account, round_float, last_month
+from models import DailyParam, AccountRecord, Account, DailyIndex, round_float, last_month, today
 from stock_info import get_index_info
 import logging
+from orm import get_pool
 
 @asyncio.coroutine
 async def get_stock_method(stock_name, buy_date):
@@ -64,27 +65,80 @@ async def get_profit_rate(account_id, start_date, end_date):
         'profit_rate': round_float((end_date_profit - start_date_profit) * 100 / average_cost)
     }
 
-def get_shenzhen_profit_rate_by_month(year, month):
-    return get_index_profit_rate_by_month('399001', '深证成指', year, month)
+@asyncio.coroutine
+async def get_shenzhen_profit_rate_by_month(year, month):
+    return await get_index_profit_rate_by_month('399001', '深证成指', year, month)
 
-def get_shanghai_profit_rate_by_month(year, month):
-    return get_index_profit_rate_by_month('000001', '上证综指', year, month)
+@asyncio.coroutine
+async def get_shanghai_profit_rate_by_month(year, month):
+    return await get_index_profit_rate_by_month('000001', '上证综指', year, month)
 
-def get_shenzhen_profit_rate(start_date, end_date):
-    return get_index_profit_rate('399001', '深证成指', start_date, end_date)
+@asyncio.coroutine
+async def get_shenzhen_profit_rate(start_date, end_date):
+    return await get_index_profit_rate('399001', '深证成指', start_date, end_date)
 
-def get_shanghai_profit_rate(start_date, end_date):
-    return get_index_profit_rate('000001', '上证综指', start_date, end_date)
+@asyncio.coroutine
+async def get_shanghai_profit_rate(start_date, end_date):
+    return await get_index_profit_rate('000001', '上证综指', start_date, end_date)
 
-def get_index_profit_rate_by_month(index, index_name, year, month):
+@asyncio.coroutine
+async def get_index_profit_rate_by_month(index, index_name, year, month):
     last_mon = last_month('-'.join([year, month]))
     start_date = last_mon+'-31'
     end_date = '-'.join([year, month, '31'])
-    return get_index_profit_rate(index, index_name, start_date, end_date)
+    return await get_index_profit_rate(index, index_name, start_date, end_date)
 
-def get_index_profit_rate(index, index_name, start_date, end_date):
-    start_value = get_index_info(index, start_date)
-    end_value = get_index_info(index, end_date)
+@asyncio.coroutine
+async def get_index_profit_rate(index, index_name, start_date, end_date):
+    if index == '000001':
+        index_str = 'shanghai_index'
+        index_freeze = 'shanghai_freeze'
+    elif index == '399001':
+        index_str = 'shenzhen_index'
+        index_freeze = 'shenzhen_freeze'
+    else:
+        return False
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            start_index = await DailyIndex.find(start_date)
+            if start_index and start_index[index_freeze]:
+                start_value = start_index[index_str]
+            else:
+                start_value = get_index_info(index, start_date)
+                if not start_index:
+                    new_index = DailyIndex()
+                    new_index.date = start_date
+                    new_index[index_str] = start_value
+                    new_index[index_freeze] = False
+                    await new_index.save(conn)
+                elif not start_index[index_freeze]:
+                    if today() > start_date and str(start_value) == str(start_index[index_str]):
+                        start_index[index_freeze] = True
+                    start_index[index_str] = start_value
+                    await start_index.update(conn)
+            end_index = await DailyIndex.find(end_date)
+            if end_index and end_index[index_freeze]:
+                end_value = end_index[index_str]
+            else:
+                end_value = get_index_info(index, end_date)
+                if not end_index:
+                    new_index = DailyIndex()
+                    new_index.date = end_date
+                    new_index[index_str] = end_value
+                    new_index[index_freeze] = False
+                    await new_index.save(conn)
+                elif not end_index[index_freeze]:
+                    if today() > end_date and str(end_value) == str(end_index[index_str]):
+                        end_index[index_freeze] = True
+                    end_index[index_str] = end_value
+                    await end_index.update(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise
+
     if (start_value and end_value):
         return {
             'account_name': index_name,

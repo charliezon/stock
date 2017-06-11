@@ -170,10 +170,10 @@ async def profit_rank(request):
                 m_accounts.append(profit_rate)
         if len(m_accounts) == 0:
             break
-        shanghai_profit_rate = get_shanghai_profit_rate_by_month(y, m)
+        shanghai_profit_rate = await get_shanghai_profit_rate_by_month(y, m)
         if shanghai_profit_rate:
             m_accounts.append(shanghai_profit_rate)
-        shenzhen_profit_rate = get_shenzhen_profit_rate_by_month(y, m)
+        shenzhen_profit_rate = await get_shenzhen_profit_rate_by_month(y, m)
         if shenzhen_profit_rate:
             m_accounts.append(shenzhen_profit_rate)
         m_accounts.sort(key=lambda x : x.get('profit_rate'), reverse=True)
