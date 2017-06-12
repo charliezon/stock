@@ -149,6 +149,11 @@ async def profit_rank(request):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
     ranks = []
+    data = {
+        'legends': [],
+        'x_data': [],
+        'y_data': []
+    }
 
     y, m = this_month().split('-')
     accounts = await Account.findAll('user_id=?', [request.__user__.id])
@@ -156,11 +161,17 @@ async def profit_rank(request):
     account_ids = []
     account_id_strs = []
     for account in accounts:
+        data['legends'].append(account.name)
         account_ids.append(account.id)
         account_id_strs.append('account_id=?')
     records = await AccountRecord.findAll(' or '.join(account_id_strs), account_ids, orderBy='date desc', limit=1)
     if len(records) > 0:
         y, m, d = records[0].date.split('-')
+
+    data['legends'].append('上证综指')
+    data['legends'].append('深证成指')
+
+    y_values = {}
 
     while True:
         m_accounts = []
@@ -168,14 +179,18 @@ async def profit_rank(request):
             profit_rate = await get_profit_rate_by_month(account.id, y, m)
             if profit_rate:
                 m_accounts.append(profit_rate)
+                y_values['-'.join([account.name, y, m])] = profit_rate['profit_rate']
         if len(m_accounts) == 0:
             break
+        data['x_data'].insert(0, '-'.join([y, m]))
         shanghai_profit_rate = await get_shanghai_profit_rate_by_month(y, m)
         if shanghai_profit_rate:
             m_accounts.append(shanghai_profit_rate)
+            y_values['-'.join(['上证综指', y, m])] = shanghai_profit_rate['profit_rate']
         shenzhen_profit_rate = await get_shenzhen_profit_rate_by_month(y, m)
         if shenzhen_profit_rate:
             m_accounts.append(shenzhen_profit_rate)
+            y_values['-'.join(['深证成指', y, m])] = shenzhen_profit_rate['profit_rate']
         m_accounts.sort(key=lambda x : x.get('profit_rate'), reverse=True)
         ranks.append({
             'year': y,
@@ -183,9 +198,19 @@ async def profit_rank(request):
             'accounts': m_accounts
         })
         y, m = last_month(y + '-' + m).split('-')
+
+    for i in data['legends']:
+        y_data = []
+        for j in data['x_data']:
+            if '-'.join([i, j]) in y_values.keys():
+                y_data.append(y_values['-'.join([i, j])])
+            else:
+                y_data.append(0)
+        data['y_data'].append(y_data)
     return {
         '__template__': 'profit_rank.html',
-        'ranks': ranks
+        'ranks': ranks,
+        'data': data
     }
 
 @asyncio.coroutine
@@ -201,10 +226,10 @@ async def profit_rank_2(request, *, start_date, end_date):
         profit_rate = await get_profit_rate(account.id, start_date, end_date)
         if profit_rate:
             rank.append(profit_rate)
-    shanghai_profit_rate = get_shanghai_profit_rate(start_date, end_date)
+    shanghai_profit_rate = await get_shanghai_profit_rate(start_date, end_date)
     if shanghai_profit_rate:
         rank.append(shanghai_profit_rate)
-    shenzhen_profit_rate = get_shenzhen_profit_rate(start_date, end_date)
+    shenzhen_profit_rate = await get_shenzhen_profit_rate(start_date, end_date)
     if shenzhen_profit_rate:
         rank.append(shenzhen_profit_rate)
     rank.sort(key=lambda x : x.get('profit_rate'), reverse=True)

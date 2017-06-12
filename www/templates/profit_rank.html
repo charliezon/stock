@@ -3,6 +3,10 @@
 {% block title %}收益率排行{% endblock %}
 
 {% block beforehead %}
+
+<script src="/static/js/echarts/echarts.min.js"></script>
+<script src="/static/js/echarts/theme/shine.js"></script>
+
 <script type="text/javascript">
 
 function initVM(data) {
@@ -26,6 +30,82 @@ $(function () {
     initVM({
 
     });
+    $("#profit_curve").css( 'width', $("#profit_curve").width() );
+    profit_curve_chart = echarts.init(document.getElementById('profit_curve'), 'shine');
+
+    option = {
+        title: {
+            text: '收益率曲线',
+            subtext: '逐月收益率曲线'
+        },
+        grid: [
+            {
+                top: 100
+            }
+        ],
+        tooltip: {
+            trigger: 'axis'
+        },
+        legend: {
+            data:[
+                {% if data %}
+                    {% for d in data.legends %}
+                        {% if loop.index!=1 %},{% endif %}'{{d}}'
+                    {% endfor %}
+                {% endif %}
+            ],
+            left: '10%',
+            right: '10%'
+        },
+        toolbox: {
+            show: true,
+            feature: {
+                dataZoom: {
+                    yAxisIndex: 'none'
+                },
+                dataView: {readOnly: false},
+                magicType: {type: ['line', 'bar']},
+                restore: {},
+                saveAsImage: {}
+            }
+        },
+        xAxis:  {
+            type: 'category',
+            boundaryGap: false,
+            data: [
+                {% if data %}
+                    {% for d in data.x_data %}
+                        {% if loop.index!=1 %},{% endif %}'{{d}}'
+                    {% endfor %}
+                {% endif %}
+            ]
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                formatter: '{value}%'
+            }
+        },
+        series: [
+            {% if data %}
+                {% for d in data.y_data %}
+                    {
+                        name:'{{data.legends[loop.index-1]}}',
+                        type:'line',
+                        data:[
+                            {% if d %}
+                                {% for i in d %}
+                                    {% if loop.index!=1 %},{% endif %}{{i}}
+                                {% endfor %}
+                            {% endif %}
+                        ]
+                    },
+                {% endfor %}
+            {% endif %}
+        ]
+    };
+
+    profit_curve_chart.setOption(option);
 });
 </script>
 {% endblock %}
@@ -53,6 +133,11 @@ $(function () {
         </div>
     </form>
 </div>
+
+{% if data %}
+<div id="profit_curve" style="width: 100%;height:600px;padding-top:1cm;"></div>
+{% endif %}
+
 {% if ranks %}
     {% for rank in ranks %}
     <h2>{{rank.year}}年{{rank.month}}月收益率排行榜</h2>

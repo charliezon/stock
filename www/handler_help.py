@@ -113,11 +113,13 @@ async def get_index_profit_rate(index, index_name, start_date, end_date):
                     new_index[index_str] = start_value
                     new_index[index_freeze] = False
                     await new_index.save(conn)
+                    await conn.commit()
                 elif not start_index[index_freeze]:
                     if today() > start_date and str(start_value) == str(start_index[index_str]):
                         start_index[index_freeze] = True
                     start_index[index_str] = start_value
                     await start_index.update(conn)
+                    await conn.commit()
             end_index = await DailyIndex.find(end_date)
             if end_index and end_index[index_freeze]:
                 end_value = end_index[index_str]
@@ -129,12 +131,13 @@ async def get_index_profit_rate(index, index_name, start_date, end_date):
                     new_index[index_str] = end_value
                     new_index[index_freeze] = False
                     await new_index.save(conn)
+                    await conn.commit()
                 elif not end_index[index_freeze]:
                     if today() > end_date and str(end_value) == str(end_index[index_str]):
                         end_index[index_freeze] = True
                     end_index[index_str] = end_value
                     await end_index.update(conn)
-            await conn.commit()
+                    await conn.commit()
         except BaseException as e:
             await conn.rollback()
             raise
