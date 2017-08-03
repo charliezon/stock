@@ -614,7 +614,7 @@ async def get_account(request, *, id):
     if account.success_times + account.fail_times==0:
         account.success_ratio = 0
     else:
-        account.success_ratio = round_float(account.success_times*100/(account.success_times + account.fail_times))
+        account.success_ratio = str(account.success_times) + '/' + str(account.success_times) + '+' + str(account.fail_times) + '=' + str(round_float(account.success_times*100/(account.success_times + account.fail_times)))
 
     stock_trades = await StockTradeRecord.findAll('account_id=?', [account.id])
 
