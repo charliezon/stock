@@ -666,7 +666,7 @@ async def get_account_records(request, *, account_id, page):
             stock_hold_records = await StockHoldRecord.findAll('account_record_id=?', [account_record.id], orderBy='stock_buy_date')
             if len(stock_hold_records)>0:
                 for record in stock_hold_records:
-                    record.stop_loss_price = round_float(record.stock_sell_price / 1.04 * 0.9)
+                    record.stop_loss_price = round_float(record.stock_sell_price / 1.034 * 0.905)
                 account_record.stock_hold_records = stock_hold_records
                 if len(stock_hold_records)>max_amount:
                     max_amount = len(stock_hold_records)
@@ -725,7 +725,7 @@ async def get_account_record(request, *, account_id, date, stock_amount):
                             price_update = True
                         float_profit_lost = float_profit_lost + (stock.stock_current_price-stock.stock_buy_price)*stock.stock_amount - compute_fee(True, account.commission_rate, stock.stock_code, stock.stock_buy_price, stock.stock_amount)
                         total_stock_value = total_stock_value + stock.stock_current_price*stock.stock_amount
-                        stock.stop_loss_price = round_float(stock.stock_sell_price / 1.04 * 0.9)
+                        stock.stop_loss_price = round_float(stock.stock_sell_price / 1.034 * 0.905)
                     if price_update:
                         account_record.float_profit_lost = round_float(float_profit_lost)
                         account_record.total_stock_value = round_float(total_stock_value)

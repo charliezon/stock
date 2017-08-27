@@ -250,7 +250,7 @@ def get_open_price(stock_code, date):
 def get_sell_price(stock_code, date):
     open_price = get_open_price(stock_code, date)
     if open_price:
-        return round_float(open_price*1.04)
+        return round_float(open_price*1.034)
     else:
         return 0
 
