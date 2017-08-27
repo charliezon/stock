@@ -290,8 +290,6 @@ function update_today_account_record(date) {
         $('#'+date+'-record').html(data);
         {% if most_recent_account_record and account %}
             content = '<li>名称：{{account.name}}</li>'+
-                        '<li>买入策略：{{account.buy_strategy}}</li>'+
-                        '<li>卖出策略：{{account.sell_strategy}}</li>'+
                         '<li>佣金率：{{account.commission_rate}}</li>'+
                         '<li>仓位：'+$('#current_stock_position').html()+'</li>'+
                         '<li>银证资金：{{most_recent_account_record.security_funding}}</li>'+
@@ -303,6 +301,8 @@ function update_today_account_record(date) {
                         '<li>本金：{{most_recent_account_record.principle}}</li>'+
                         '<li>成功率：{{account.success_ratio}}%</li>';
             $('#account_info').html(content);
+            $('#buy_strategy').html('{{account.buy_strategy}}');
+            $('#sell_strategy').html('{{account.sell_strategy}}');
         {% endif %}
         total_assets = parseFloat($('#current_total_assets').html());
         total_assets_curve_chart_data[total_assets_curve_chart_data.length-1] = total_assets;
@@ -409,8 +409,6 @@ function remove_account_record(account_record_id) {
                 <ul id="account_info">
                     {% if most_recent_account_record and account %}
                     <li>名称：{{account.name}}</li>
-                    <li>买入策略：{{account.buy_strategy}}</li>
-                    <li>卖出策略：{{account.sell_strategy}}</li>
                     <li>佣金率：{{account.commission_rate}}</li>
                     <li>仓位：{{most_recent_account_record.stock_position}}%</li>
                     <li>银证资金：{{most_recent_account_record.security_funding}}</li>
@@ -428,12 +426,39 @@ function remove_account_record(account_record_id) {
 
         <div class="uk-width-1-2">
             <div class="uk-panel uk-panel-box">
+                <h3 class="uk-panel-title"><strong>买入策略</strong></h3>
+                <ul id="buy_strategy">
+                    {% if most_recent_account_record and account %}
+                    {{account.buy_strategy}}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="uk-grid uk-grid-medium uk-grid-match" data-uk-grid-match="{target:'.uk-panel'}">
+
+
+        <div class="uk-width-1-2">
+            <div class="uk-panel uk-panel-box">
                 <h3 class="uk-panel-title"><strong>操作建议</strong></h3>
                 <ul>
                     {% if advices %}
                         {% for advice in advices %}
                             <li>{{ advice|safe }}</li>
                         {% endfor %}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+
+        <div class="uk-width-1-2">
+            <div class="uk-panel uk-panel-box">
+                <h3 class="uk-panel-title"><strong>卖出策略</strong></h3>
+                <ul id="sell_strategy">
+                    {% if most_recent_account_record and account %}
+                    {{account.sell_strategy}}
                     {% endif %}
                 </ul>
             </div>
