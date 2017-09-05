@@ -441,6 +441,8 @@ async def get_account(request, *, id):
     clear = False
     max_position = 0
     dp = await DailyParam.findAll(orderBy='date desc', limit=1)
+    can_buy_method_1 = True
+    can_buy_method_2 = True
     if len(dp)>0:
         dadieweizhidie = False
         dp1 = await DailyParam.findAll('increase_range<?', [-0.015], orderBy='date desc', limit=1)
