@@ -262,11 +262,8 @@ def compute_stock_tax(buy, stock_price, stock_amount):
         return stock_price*stock_amount*configs.stock.tax_rate
 
 # 过户费计算
-def compute_exchange_fee(stock_code, stock_amount):
-    if not (stock_code[:1] == '0' or stock_code[:1] == '3'):
-        return stock_amount * configs.stock.exchange_fee_rate;
-    else:
-        return 0
+def compute_exchange_fee(stock_price, stock_amount):
+    return stock_price * stock_amount * configs.stock.exchange_fee_rate;
 
 # 佣金计算
 def compute_security_fee(stock_price, stock_amount, commission_rate):
@@ -277,7 +274,7 @@ def compute_security_fee(stock_price, stock_amount, commission_rate):
 
 
 def compute_fee(buy, commission_rate, stock_code, stock_price, stock_amount):
-    fee = compute_stock_tax(buy, stock_price, stock_amount) + compute_exchange_fee(stock_code, stock_amount) + compute_security_fee(stock_price, stock_amount, commission_rate)
+    fee = compute_stock_tax(buy, stock_price, stock_amount) + compute_exchange_fee(stock_price, stock_amount) + compute_security_fee(stock_price, stock_amount, commission_rate)
     return round_float(fee)
 
 
