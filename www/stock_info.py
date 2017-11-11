@@ -198,7 +198,7 @@ def get_stock_via_name(name):
                 stock_list = content_list[1].split(r';')
                 for stock in stock_list:
                     stock_info = stock.split(r',')
-                    if len(stock_info) == 8:
+                    if len(stock_info) >=5 :
                         stocks.append({'stock_code':stock_info[2], 'stock_name':stock_info[4]})
             return stocks
 
