@@ -67,7 +67,15 @@
                         </li>
                     {% endif %}
                     {% if __user__.admin and  __user__.name != "charlie" %}
-                        <li><a href="/param_statistical"><i class="uk-icon-pencil-square"></i> 统计数据</a></li>
+                        <li class="uk-parent" data-uk-dropdown>
+                            <a href="#0"><i class="uk-icon-pencil-square"></i> 统计数据</a>
+                            <div class="uk-dropdown uk-dropdown-navbar">
+                                <ul class="uk-nav uk-nav-navbar">
+                                    <li><a href="/param_statistical"><i class="uk-icon-pencil-square"></i> 统计大盘</a></li>
+                                    <li><a href="/prob_statistical"><i class="uk-icon-pencil-square"></i> 统计个股成功率</a></li>
+                                </ul>
+                            </div>
+                        </li>
                     {% endif %}
                 </ul>
             {% endif %}

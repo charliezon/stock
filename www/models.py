@@ -214,3 +214,42 @@ class ConditionProb(Model):
     increase_numerator =  IntegerField()
     increase_denominator =  IntegerField()
     increase_result = FloatField()
+
+class DailyIndexE(Model):
+    __table__ = 'daily_index_e'
+
+    date = StringField(primary_key=True, default=today, ddl='varchar(50)')
+    e1 = IntegerField()
+    e2 = IntegerField()
+    e3 = IntegerField()
+    e4 = IntegerField()
+    created_at = FloatField(default=time.time)
+
+class DailyConditionProb(Model):
+    __table__ = 'daily_condition_prob'
+
+    id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
+    date = StringField(default=today, ddl='varchar(50)')
+    stock_code = StringField(ddl='varchar(50)')
+    stock_name = StringField(ddl='varchar(50)')
+    profit = StringField(ddl='varchar(50)')
+    turnover = StringField(ddl='varchar(50)')
+    increase = StringField(ddl='varchar(50)')
+    buy_or_follow = BooleanField()
+    win_percent = FloatField()
+    lose_percent = FloatField()
+    lose_cache = FloatField()
+    days =  IntegerField()
+    all_numerator =  IntegerField()
+    all_denominator =  IntegerField()
+    all_result = FloatField()
+    profit_numerator =  IntegerField()
+    profit_denominator =  IntegerField()
+    profit_result = FloatField()
+    turnover_numerator =  IntegerField()
+    turnover_denominator =  IntegerField()
+    turnover_result = FloatField()
+    increase_numerator =  IntegerField()
+    increase_denominator =  IntegerField()
+    increase_result = FloatField()
+    created_at = FloatField(default=time.time)

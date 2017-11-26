@@ -216,7 +216,7 @@ def get_stock_via_code(code):
             else:
                 content_list = content.split('~')
                 if len(content_list) >= 2:
-            	    return [{'stock_code':code, 'stock_name':content_list[1].replace(' ', '')}]
+            	    return [{'stock_code':code, 'stock_name':content_list[1].replace(' ', ''), 'turnover':float(content_list[38]), 'increase':float(content_list[32])}]
                 else:
             	    return False
         else:

@@ -12,7 +12,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, next_id, today, convert_date, round_float, this_month, last_month
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, DailyConditionProb, DailyIndexE, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
 from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate
@@ -1707,6 +1707,16 @@ async def handle_param_statistical(request, date):
     result = await get_index_info(request, date)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
     dp = await DailyParam.find(date)
+    di = await DailyIndexE.find(date)
+    if di is None:
+        di = DailyIndexE(
+            date = date,
+            e1 = 0,
+            e2 = 0,
+            e3 = 0,
+            e4 = 0
+        )
+
     if dp:
         dp.twenty_days_line = int(dp.twenty_days_line)
         dp.shanghai_break_twenty_days_line = int(dp.shanghai_break_twenty_days_line)
@@ -1758,14 +1768,16 @@ async def handle_param_statistical(request, date):
     return {
         '__template__': 'param_statistical.html',
         'dp': dp,
+        'di': di,
         'accounts': all_accounts,
         'action': '/api/param_statistical'
     }
 
 @asyncio.coroutine
 @post('/api/param_statistical')
-async def api_param_statistical(request, *, date, shanghai_index, stock_market_status, twenty_days_line, increase_range, three_days_average_shanghai_increase, 
-                                shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_obviously, shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line, shenzhen_break_twenty_days_line_obviously,
+async def api_param_statistical(request, *, date, shanghai_index, stock_market_status, twenty_days_line, sz_twenty_days_line, sh_sz_upper, sh_sz_bigger, increase_range, 
+                                three_days_average_shanghai_increase, shanghai_break_twenty_days_line, shanghai_break_twenty_days_line_obviously, 
+                                shanghai_break_twenty_days_line_for_two_days, shenzhen_break_twenty_days_line, shenzhen_break_twenty_days_line_obviously,
                                 shenzhen_break_twenty_days_line_for_two_days, all_stock_amount, buy_stock_amount, pursuit_stock_amount,
                                 iron_stock_amount, bank_stock_amount, strong_pursuit_stock_amount, pursuit_kdj_die_stock_amount, run_stock_amount, method2_bigger_9_amount,
                                 futures, method_1, method_2):
@@ -1885,9 +1897,26 @@ async def api_param_statistical(request, *, date, shanghai_index, stock_market_s
             four_days_pursuit_ratio_decrease = True
 
     dp = await DailyParam.find(date)
+    di = await DailyIndexE.find(date)
     async with get_pool().get() as conn:
         await conn.begin()
         try:
+            e1 = twenty_days_line
+            e2 = sz_twenty_days_line
+            e3 = sh_sz_upper
+            e4 = sh_sz_bigger
+            if di:
+                di.e1, di.e2, di.e3, di.e4 = e1, e2, e3, e4
+                await di.update(conn)
+            else:
+                di = DailyIndexE(
+                    date = date,
+                    e1 = e1,
+                    e2 = e2,
+                    e3 = e3,
+                    e4 = e4
+                )
+                await di.save(conn)
             if dp:
                 dp.date = date
                 dp.shanghai_index=shanghai_index
@@ -2182,6 +2211,300 @@ async def get_condition_prob(request, *, page):
         '__template__': 'condition_prob_records.html',
         'probs': probs
     }
+
+@asyncio.coroutine
+@get('/prob_statistical')
+async def do_prob_statistica_1(request):
+    return await handle_prob_statistical(request, today())
+
+@asyncio.coroutine
+@get('/prob_statistical/')
+async def do_prob_statistical_2(request):
+    return await handle_prob_statistical(request, today())
+
+@asyncio.coroutine
+async def handle_prob_statistical(request, date):
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    probs = await DailyConditionProb.findAll()
+    return {
+        '__template__': 'prob_statistical.html',
+        'accounts': all_accounts,
+        'prob_amount': len(probs),
+        'prob_items_on_page': configs.stock.prob_items_on_page,
+        'action': '/api/prob_statistical'
+    }
+
+@asyncio.coroutine
+@get('/prob_statistical/{page}')
+async def get_prob_statistical(request, *, page):
+    must_log_in(request)
+    check_admin(request)
+    try:
+        page = int(page)
+    except ValueError as e:
+        raise APIPermissionError()
+    probs = await DailyConditionProb.findAll(orderBy='date desc', limit=((page-1)*configs.stock.prob_items_on_page, configs.stock.prob_items_on_page))
+    if len(probs)>0:
+        for prob in probs:
+            dailyIndexE = await DailyIndexE.find(prob.date)
+            if dailyIndexE is not None:
+                prob.e1, prob.e2, prob.e3, prob.e4 = dailyIndexE.e1, dailyIndexE.e2, dailyIndexE.e3, dailyIndexE.e4
+
+            if prob.all_result > 0.9 and prob.profit_result > 0.9 and prob.turnover_result > 0.9 and prob.increase_result > 0.9 and prob.all_denominator > 37:
+                prob.may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
+            elif not prob.buy_or_follow and prob.e1 == 1 and (prob.e3 == 1 or prob.e4 == 1) and prob.all_result > 0.8 and prob.profit_result > 0.7 and prob.turnover_result > 0.7 and prob.increase_result > 0.8 and prob.all_denominator > 10:
+                prob.may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
+            else:
+                prob.may_buy = '不可买'
+
+            if prob.e1 == 1:
+                prob.e1 = '<span class="uk-badge uk-badge-success">20日上</span>'
+            else:
+                prob.e1 = '<span class="uk-badge uk-badge-danger">20日下</span>'
+
+            if prob.e2 == 1:
+                prob.e2 = '<span class="uk-badge uk-badge-success">20日上</span>'
+            else:
+                prob.e2 = '<span class="uk-badge uk-badge-danger">20日下</span>'
+
+            if prob.e3 == 1:
+                prob.e3 = '<span class="uk-badge uk-badge-success">上升</span>'
+            elif prob.e3 == 0:
+                prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
+            else:
+                prob.e3 = '-'
+
+            if prob.e4 == 1:
+                prob.e4 = '<span class="uk-badge uk-badge-success">大于前日</span>'
+            elif prob.e4 == 0:
+                prob.e4 = '<span class="uk-badge uk-badge-danger">小于前日</span>'
+            else:
+                prob.e4 = '-'
+
+            if prob.profit == 'E5':
+                prob.profit = 'E5:大于90%'
+            elif prob.profit == 'E6':
+                prob.profit = 'E6:大于60%小于等于90%'
+            elif prob.profit == 'E7':
+                prob.profit = 'E7:大于30%小于等于60%'
+            elif prob.profit == 'E81':
+                prob.profit = 'E81:大于25%小于等于30%'
+            elif prob.profit == 'E82':
+                prob.profit = 'E82:大于20%小于等于25%'
+            elif prob.profit == 'E83':
+                prob.profit = 'E83:大于15%小于等于20%'
+            elif prob.profit == 'E84':
+                prob.profit = 'E84:大于10%小于等于15%'
+            elif prob.profit == 'E85':
+                prob.profit = 'E85:大于5%小于等于10%'
+            elif prob.profit == 'E86':
+                prob.profit = 'E86:小于等于5%'
+
+            if prob.turnover == 'E9':
+                prob.turnover = 'E9:小于等于0.5%'
+            elif prob.turnover == 'E10':
+                prob.turnover = 'E10:大于0.5%小于等于1%'
+            elif prob.turnover == 'E11':
+                prob.turnover = 'E11:大于1%小于等于3%'
+            elif prob.turnover == 'E12':
+                prob.turnover = 'E12:大于3%小于等于5%'
+            elif prob.turnover == 'E13':
+                prob.turnover = 'E13:大于5%小于等于10%'
+            elif prob.turnover == 'E14':
+                prob.turnover = 'E14:大于10%小于等于20%'
+            elif prob.turnover == 'E15':
+                prob.turnover = 'E15:大于20%'
+
+            if prob.increase == 'E16':
+                prob.increase = 'E16:小于等于0%'
+            if prob.increase == 'E17':
+                prob.increase = 'E17:大于0%小于等于2%'
+            if prob.increase == 'E18':
+                prob.increase = 'E18:大于2%小于等于4%'
+            if prob.increase == 'E19':
+                prob.increase = 'E19:大于4%小于等于6%'
+            if prob.increase == 'E20':
+                prob.increase = 'E20:大于6%小于等于9%'
+            if prob.increase == 'E21':
+                prob.increase = 'E21:大于9%'
+
+            if prob.buy_or_follow:
+                prob.buy_or_follow = '<span class="uk-badge uk-badge-danger">买入</span>'
+            else:
+                prob.buy_or_follow = '<span class="uk-badge uk-badge-success">追涨</span>'
+
+            prob.all_success = '%s / %s = %s' % (prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
+            prob.profit_success = '%s / %s = %s' % (prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
+            prob.turnover_success = '%s / %s = %s' % (prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
+            prob.increase_success = '%s / %s = %s' % (prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
+
+    return {
+        '__template__': 'prob_statistical_records.html',
+        'probs': probs
+    }
+
+@asyncio.coroutine
+@post('/api/prob_statistical')
+async def api_prob_statistical(request, *, date, stock_name, profit, turnover, increase, buy_or_follow):
+    must_log_in(request)
+    check_admin(request)
+    if date is None:
+        raise APIValueError('date', '日期不能为空')
+    if date.strip() == '':
+        raise APIValueError('date', '请选择日期')
+    date = date.strip()
+    if date > today():
+        raise APIValueError('date', '日期不能晚于今天')
+
+    dailyIndexE = await DailyIndexE.find(date)
+
+    if dailyIndexE is None:
+        raise APIValueError('date', '没有该天的大盘数据')
+
+    e1 = int(dailyIndexE.e1)
+    e2 = int(dailyIndexE.e2)
+    e3 = int(dailyIndexE.e3)
+    e4 = int(dailyIndexE.e4)
+    if e3 == 0 and e1 == 1 and e2 == 1 and dailyIndexE.e4 == 1:
+        e3 = 2
+    if e4 == 0 and e1 == 1 and e2 == 1 and dailyIndexE.e3 == 1:
+        e4 = 2
+
+    if stock_name is None:
+        raise APIValueError('stock_name', '股票名称不能为空')
+    if stock_name.strip() == '':
+        raise APIValueError('stock_name', '股票名称不能为空')
+    stock_name = stock_name.strip()
+
+    stock_inf = get_stock_via_name(stock_name)
+    if not stock_inf:
+        raise APIValueError('stock_name', '出错了')
+    if len(stock_inf)<1:
+        raise APIValueError('stock_name', '股票不存在')
+    elif len(stock_inf)>1:
+        raise APIValueError('stock_name', '股票不唯一')
+    stock_code = stock_inf[0]['stock_code']
+
+    if profit is None:
+        raise APIValueError('profit', '获利比例不能为空')
+    profit = float(profit)
+    profit_sign = None
+    profit_sign = 'E5' if profit > 0.9 else profit_sign
+    profit_sign = 'E6' if profit > 0.6 and profit <= 0.9 else profit_sign
+    profit_sign = 'E7' if profit > 0.3 and profit <= 0.6 else profit_sign
+    profit_sign = 'E81' if profit > 0.25 and profit <= 0.3 else profit_sign
+    profit_sign = 'E82' if profit > 0.2 and profit <= 0.25 else profit_sign
+    profit_sign = 'E83' if profit > 0.15 and profit <= 0.2 else profit_sign
+    profit_sign = 'E84' if profit > 0.1 and profit <= 0.15 else profit_sign
+    profit_sign = 'E85' if profit > 0.05 and profit <= 0.1 else profit_sign
+    profit_sign = 'E86' if profit >= 0 and profit <= 0.05 else profit_sign
+
+    if buy_or_follow is None:
+        raise APIValueError('buy_or_follow', '追涨买入不能为空')
+    buy_or_follow = int(buy_or_follow)
+
+    if (buy_or_follow):
+        win_percent = 0.04
+    else:
+        win_percent = 0.034
+    lose_percent = 0.1
+    lose_cache = 0.005
+    days = 30
+
+    if turnover is None or increase is None or turnover.strip() == '' or increase.strip() == '':
+        stock_info = get_stock_via_code(stock_code)
+        if stock_info == False:
+            raise APIValueError('stock_name', '无法获取到股票信息')
+        turnover = stock_info[0]['turnover']/100
+        increase = stock_info[0]['increase']/100
+    else:
+        turnover = float(turnover)
+        increase = float(increase)
+
+    if turnover is None:
+        raise APIValueError('stock_name', '无法获取到换手率信息')
+    turnover_sign = None
+    turnover_sign = 'E9' if turnover is not None and turnover <= 0.005 else turnover_sign
+    turnover_sign = 'E10' if turnover is not None and turnover > 0.005 and turnover <= 0.01 else turnover_sign
+    turnover_sign = 'E11' if turnover is not None and turnover > 0.01 and turnover <= 0.03 else turnover_sign
+    turnover_sign = 'E12' if turnover is not None and turnover > 0.03 and turnover <= 0.05 else turnover_sign
+    turnover_sign = 'E13' if turnover is not None and turnover > 0.05 and turnover <= 0.10 else turnover_sign
+    turnover_sign = 'E14' if turnover is not None and turnover > 0.10 and turnover <= 0.20 else turnover_sign
+    turnover_sign = 'E15' if turnover is not None and turnover > 0.20 else turnover_sign
+
+    if increase is None:
+        raise APIValueError('stock_name', '无法获取到涨跌信息')
+    increase_sign = None
+    increase_sign = 'E16' if increase is not None and increase <= 0 else increase_sign
+    increase_sign = 'E17' if increase is not None and increase > 0 and increase <= 0.02 else increase_sign
+    increase_sign = 'E18' if increase is not None and increase > 0.02 and increase <= 0.04 else increase_sign
+    increase_sign = 'E19' if increase is not None and increase > 0.04 and increase <= 0.06 else increase_sign
+    increase_sign = 'E20' if increase is not None and increase > 0.06 and increase <= 0.09 else increase_sign
+    increase_sign = 'E21' if increase is not None and increase > 0.09 else increase_sign
+
+    cps = await ConditionProb.findAll('e1=? and e2=? and e3=? and e4=? and profit=? and turnover=? and increase=? and buy_or_follow=?', [e1, e2, e3, e4, profit_sign, turnover_sign, increase_sign, buy_or_follow])
+
+    if cps is None or len(cps)==0:
+        raise APIValueError('stock_name', '无法获取到成功率信息')
+
+    if len(cps) > 1:
+        raise APIValueError('stock_name', '获取到多条成功率信息')
+
+    dcp = DailyConditionProb(
+        date = date,
+        stock_code = stock_code,
+        stock_name = stock_name,
+        profit = profit_sign,
+        turnover = turnover_sign,
+        increase = increase_sign,
+        buy_or_follow = buy_or_follow,
+        win_percent = win_percent,
+        lose_percent = lose_percent,
+        lose_cache = lose_cache,
+        days =  days,
+        all_numerator =  cps[0].all_numerator,
+        all_denominator =  cps[0].all_denominator,
+        all_result = cps[0].all_result,
+        profit_numerator =  cps[0].profit_numerator,
+        profit_denominator =  cps[0].profit_denominator,
+        profit_result = cps[0].profit_result,
+        turnover_numerator =  cps[0].turnover_numerator,
+        turnover_denominator =  cps[0].turnover_denominator,
+        turnover_result = cps[0].turnover_result,
+        increase_numerator =  cps[0].increase_numerator,
+        increase_denominator =  cps[0].increase_denominator,
+        increase_result = cps[0].increase_result,
+    )
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await dcp.save(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            raise APIValueError('stock_name', '保存信息失败')
+    return dcp
+
+@asyncio.coroutine
+@post('/api/remove/prob_records')
+async def api_remove_prob_record(request, *, prob_id):
+    must_log_in(request)
+    if not prob_id or not prob_id.strip():
+        return '删除记录失败(1)'
+    prob_record = await DailyConditionProb.find(prob_id)
+    if not prob_record:
+        return '删除记录失败(2)'
+
+    async with get_pool().get() as conn:
+        await conn.begin()
+        try:
+            await prob_record.remove(conn)
+            await conn.commit()
+        except BaseException as e:
+            await conn.rollback()
+            return '删除记录失败(5)'
+    return '删除记录成功'
 
 
 @asyncio.coroutine
