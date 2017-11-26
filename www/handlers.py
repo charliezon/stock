@@ -2109,8 +2109,10 @@ async def get_condition_prob(request, *, page):
 
             if prob.e3 == 1:
                 prob.e3 = '<span class="uk-badge uk-badge-success">上升</span>'
-            else:
+            elif prob.e3 == 0:
                 prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
+            else:
+                prob.e3 = '-'
 
             if prob.e4 == 1:
                 prob.e4 = '<span class="uk-badge uk-badge-success">大于前日</span>'
