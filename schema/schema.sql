@@ -146,3 +146,32 @@ create table daily_index (
     key `idx_created_at` (`created_at`),
     primary key (`date`)
 ) engine=innodb default charset=utf8;
+
+create table condition_prob (
+    `id` varchar(50) not null,
+    `e1` int(1) not null,
+    `e2` int(1) not null,
+    `e3` int(1) not null,
+    `e4` int(1) not null,
+    `profit` varchar(50) not null,
+    `turnover` varchar(50) not null,
+    `increase` varchar(50) not null,
+    `buy_or_follow` bool not null,
+    `win_percent` real not null,
+    `lose_percent` real not null,
+    `lose_cache` real not null,
+    `days` int(100) not null,
+    `all_numerator` int(100) not null,
+    `all_denominator` int(100) not null,
+    `all_result` real not null,
+    `profit_numerator` int(100) not null,
+    `profit_denominator` int(100) not null,
+    `profit_result` real not null,
+    `turnover_numerator` int(100) not null,
+    `turnover_denominator` int(100) not null,
+    `turnover_result` real not null,
+    `increase_numerator` int(100) not null,
+    `increase_denominator` int(100) not null,
+    `increase_result` real not null,
+    primary key (`id`)
+) engine=innodb default charset=utf8;

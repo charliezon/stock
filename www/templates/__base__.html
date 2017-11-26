@@ -56,10 +56,18 @@
                     {% endif %}
                     <li><a href="/account/create"><i class="uk-icon-plus-square-o"></i> 创建账户</a></li>
                     {% if __user__.admin %}
-                        <li><a href="/params"><i class="uk-icon-list"></i> 历史参数</a></li>
+                        <li class="uk-parent" data-uk-dropdown>
+                            <a href="#0"><i class="uk-icon-bar-chart"></i> 历史数据</a>
+                            <div class="uk-dropdown uk-dropdown-navbar">
+                                <ul class="uk-nav uk-nav-navbar">
+                                    <li><a href="/params"><i class="uk-icon-list"></i> 历史统计</a></li>
+                                    <li><a href="/condition_prob"><i class="uk-icon-list"></i> 条件成功率</a></li>
+                                </ul>
+                            </div>
+                        </li>
                     {% endif %}
                     {% if __user__.admin and  __user__.name != "charlie" %}
-                        <li><a href="/param_statistical"><i class="uk-icon-pencil-square"></i> 统计参数</a></li>
+                        <li><a href="/param_statistical"><i class="uk-icon-pencil-square"></i> 统计数据</a></li>
                     {% endif %}
                 </ul>
             {% endif %}

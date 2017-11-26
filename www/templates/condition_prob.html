@@ -1,0 +1,42 @@
+{% extends '__base__.html' %}
+
+{% block title %}条件成功率{% endblock %}
+
+{% block beforehead %}
+
+<script src="/static/js/echarts/echarts.min.js"></script>
+<script src="/static/js/echarts/theme/shine.js"></script>
+
+<script>
+
+$(document).ready(function(){
+
+    $('#prob-pagination').on('select.uk.pagination', function(e, pageIndex){
+        load_probs(pageIndex+1);
+    });
+    load_probs(1);
+});
+
+
+function load_probs(page) {
+    $.get('/condition_prob/'+page).done(function (data) {
+        $('#prob_table').html(data);
+    });
+}
+</script>
+
+{% endblock %}
+
+{% block content %}
+
+    {% if prob_amount>0 %}
+        <div class="uk-overflow-container uk-grid">
+            <div id="prob_table" class="uk-width-1-1">
+            </div>
+        </div>
+        {% if prob_amount>prob_items_on_page %}
+            <ul id="prob-pagination" class="uk-pagination" data-uk-pagination="{items:{{prob_amount}}, itemsOnPage:{{prob_items_on_page}}, currentPage:0}"></ul>
+        {% endif %}
+    {% endif %}
+
+{% endblock %}

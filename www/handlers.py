@@ -12,7 +12,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, next_id, today, convert_date, round_float, this_month, last_month
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
 from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate
@@ -2069,6 +2069,118 @@ async def get_params(request, *, page):
         '__template__': 'param_records.html',
         'dps': dps
     }
+
+@asyncio.coroutine
+@get('/condition_prob')
+async def do_condition_prob(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    check_admin(request)
+    all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    probs = await ConditionProb.findAll()
+    return {
+        '__template__': 'condition_prob.html',
+        'accounts': all_accounts,
+        'prob_amount': len(probs),
+        'prob_items_on_page': configs.stock.prob_items_on_page
+    }
+
+@asyncio.coroutine
+@get('/condition_prob/{page}')
+async def get_condition_prob(request, *, page):
+    must_log_in(request)
+    check_admin(request)
+    try:
+        page = int(page)
+    except ValueError as e:
+        raise APIPermissionError()
+    probs = await ConditionProb.findAll(orderBy='all_result desc, all_denominator desc', limit=((page-1)*configs.stock.prob_items_on_page, configs.stock.prob_items_on_page))
+    if len(probs)>0:
+        for prob in probs:
+            if prob.e1 == 1:
+                prob.e1 = '<span class="uk-badge uk-badge-success">20日上</span>'
+            else:
+                prob.e1 = '<span class="uk-badge uk-badge-danger">20日下</span>'
+
+            if prob.e2 == 1:
+                prob.e2 = '<span class="uk-badge uk-badge-success">20日上</span>'
+            else:
+                prob.e2 = '<span class="uk-badge uk-badge-danger">20日下</span>'
+
+            if prob.e3 == 1:
+                prob.e3 = '<span class="uk-badge uk-badge-success">上升</span>'
+            else:
+                prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
+
+            if prob.e4 == 1:
+                prob.e4 = '<span class="uk-badge uk-badge-success">大于前日</span>'
+            elif prob.e4 == 0:
+                prob.e4 = '<span class="uk-badge uk-badge-danger">小于前日</span>'
+            else:
+                prob.e4 = '-'
+
+            if prob.profit == 'E5':
+                prob.profit = 'E5:大于90%'
+            elif prob.profit == 'E6':
+                prob.profit = 'E6:大于60%小于等于90%'
+            elif prob.profit == 'E7':
+                prob.profit = 'E7:大于30%小于等于60%'
+            elif prob.profit == 'E81':
+                prob.profit = 'E81:大于25%小于等于30%'
+            elif prob.profit == 'E82':
+                prob.profit = 'E82:大于20%小于等于25%'
+            elif prob.profit == 'E83':
+                prob.profit = 'E83:大于15%小于等于20%'
+            elif prob.profit == 'E84':
+                prob.profit = 'E84:大于10%小于等于15%'
+            elif prob.profit == 'E85':
+                prob.profit = 'E85:大于5%小于等于10%'
+            elif prob.profit == 'E86':
+                prob.profit = 'E86:小于等于5%'
+
+            if prob.turnover == 'E9':
+                prob.turnover = 'E9:小于等于0.5%'
+            elif prob.turnover == 'E10':
+                prob.turnover = 'E10:大于0.5%小于等于1%'
+            elif prob.turnover == 'E11':
+                prob.turnover = 'E11:大于1%小于等于3%'
+            elif prob.turnover == 'E12':
+                prob.turnover = 'E12:大于3%小于等于5%'
+            elif prob.turnover == 'E13':
+                prob.turnover = 'E13:大于5%小于等于10%'
+            elif prob.turnover == 'E14':
+                prob.turnover = 'E14:大于10%小于等于20%'
+            elif prob.turnover == 'E15':
+                prob.turnover = 'E15:大于20%'
+
+            if prob.increase == 'E16':
+                prob.increase = 'E16:小于等于0%'
+            if prob.increase == 'E17':
+                prob.increase = 'E17:大于0%小于等于2%'
+            if prob.increase == 'E18':
+                prob.increase = 'E18:大于2%小于等于4%'
+            if prob.increase == 'E19':
+                prob.increase = 'E19:大于4%小于等于6%'
+            if prob.increase == 'E20':
+                prob.increase = 'E20:大于6%小于等于9%'
+            if prob.increase == 'E21':
+                prob.increase = 'E21:大于9%'
+
+            if prob.buy_or_follow:
+                prob.buy_or_follow = '<span class="uk-badge uk-badge-danger">买入</span>'
+            else:
+                prob.buy_or_follow = '<span class="uk-badge uk-badge-success">追涨</span>'
+
+            prob.all_success = '%s / %s = %s' % (prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
+            prob.profit_success = '%s / %s = %s' % (prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
+            prob.turnover_success = '%s / %s = %s' % (prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
+            prob.increase_success = '%s / %s = %s' % (prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
+
+    return {
+        '__template__': 'condition_prob_records.html',
+        'probs': probs
+    }
+
 
 @asyncio.coroutine
 async def get_index_info(request, date):
