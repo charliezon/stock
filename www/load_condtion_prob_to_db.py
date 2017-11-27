@@ -115,9 +115,9 @@ for key in cache:
             profit_result = profit_record['result']
 
         if e3 == 2:
-            profit_key = ' and '.join([keys[0], keys[1], keys[3], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
+            turnover_key = ' and '.join([keys[0], keys[1], keys[3], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
         elif e4 == 2:
-            profit_key = ' and '.join([keys[0], keys[1], keys[2], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
+            turnover_key = ' and '.join([keys[0], keys[1], keys[2], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
         else:
             turnover_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
         turnover_record = cache[turnover_key]
@@ -127,9 +127,9 @@ for key in cache:
             turnover_result = turnover_record['result']
 
         if e3 == 2:
-            profit_key = ' and '.join([keys[0], keys[1], keys[3], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
+            increase_key = ' and '.join([keys[0], keys[1], keys[3], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
         elif e4 == 2:
-            profit_key = ' and '.join([keys[0], keys[1], keys[2], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
+            increase_key = ' and '.join([keys[0], keys[1], keys[2], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
         else:
             increase_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
         increase_record = cache[increase_key]
