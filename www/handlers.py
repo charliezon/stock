@@ -2243,7 +2243,7 @@ async def get_prob_statistical(request, *, page):
         page = int(page)
     except ValueError as e:
         raise APIPermissionError()
-    probs = await DailyConditionProb.findAll(orderBy='date desc', limit=((page-1)*configs.stock.prob_items_on_page, configs.stock.prob_items_on_page))
+    probs = await DailyConditionProb.findAll(orderBy='date desc, created_at desc', limit=((page-1)*configs.stock.prob_items_on_page, configs.stock.prob_items_on_page))
     if len(probs)>0:
         for prob in probs:
             dailyIndexE = await DailyIndexE.find(prob.date)
