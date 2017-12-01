@@ -54,12 +54,6 @@ id = 1
 for key in cache:
     keys = key.split(' and ')
 
-    if (len(keys) == 11):
-        if (keys[2] == 'E3'):
-            keys.insert(3, 'not defined')
-        elif (keys[2] == 'E4'):
-            keys.insert(2, 'not defined')
-
     if (len(keys) == 12):
         if (keys[0] == 'E1'):
             e1 = 1
@@ -73,17 +67,13 @@ for key in cache:
 
         if (keys[2] == 'E3'):
             e3 = 1
-        elif (keys[2] == 'not E3'):
-            e3 = 0
         else:
-            e3 = 2
+            e3 = 0
 
         if (keys[3] == 'E4'):
             e4 = 1
-        elif (keys[3] == 'not E4'):
-            e4 = 0
         else:
-            e4 = 2
+            e4 = 0
 
         profit_sign = keys[4]
         turnover_sign = keys[5]
@@ -102,36 +92,21 @@ for key in cache:
         all_denominator = int(cache[key]['denominator'])
         all_result = cache[key]['result']
 
-        if e3 == 2:
-            profit_key = ' and '.join([keys[0], keys[1], keys[3], keys[4], keys[7], keys[8], keys[9], keys[10], keys[11]])
-        elif e4 == 2:
-            profit_key = ' and '.join([keys[0], keys[1], keys[2], keys[4], keys[7], keys[8], keys[9], keys[10], keys[11]])
-        else:
-            profit_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[4], keys[7], keys[8], keys[9], keys[10], keys[11]])
+        profit_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[4], keys[7], keys[8], keys[9], keys[10], keys[11]])
         profit_record = cache[profit_key]
         if profit_record is not None:
             profit_numerator = int(profit_record['numerator'])
             profit_denominator = int(profit_record['denominator'])
             profit_result = profit_record['result']
 
-        if e3 == 2:
-            turnover_key = ' and '.join([keys[0], keys[1], keys[3], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
-        elif e4 == 2:
-            turnover_key = ' and '.join([keys[0], keys[1], keys[2], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
-        else:
-            turnover_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
+        turnover_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[5], keys[7], keys[8], keys[9], keys[10], keys[11]])
         turnover_record = cache[turnover_key]
         if turnover_record is not None:
             turnover_numerator = int(turnover_record['numerator'])
             turnover_denominator = int(turnover_record['denominator'])
             turnover_result = turnover_record['result']
 
-        if e3 == 2:
-            increase_key = ' and '.join([keys[0], keys[1], keys[3], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
-        elif e4 == 2:
-            increase_key = ' and '.join([keys[0], keys[1], keys[2], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
-        else:
-            increase_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
+        increase_key = ' and '.join([keys[0], keys[1], keys[2], keys[3], keys[6], keys[7], keys[8], keys[9], keys[10], keys[11]])
         increase_record = cache[increase_key]
         if increase_record is not None:
             increase_numerator = int(increase_record['numerator'])

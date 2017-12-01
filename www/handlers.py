@@ -2138,17 +2138,13 @@ async def get_condition_prob(request, *, page):
 
             if prob.e3 == 1:
                 prob.e3 = '<span class="uk-badge uk-badge-success">上升</span>'
-            elif prob.e3 == 0:
-                prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
             else:
-                prob.e3 = '-'
+                prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
 
             if prob.e4 == 1:
                 prob.e4 = '<span class="uk-badge uk-badge-success">大于前日</span>'
-            elif prob.e4 == 0:
-                prob.e4 = '<span class="uk-badge uk-badge-danger">小于前日</span>'
             else:
-                prob.e4 = '-'
+                prob.e4 = '<span class="uk-badge uk-badge-danger">小于前日</span>'
 
             if prob.profit == 'E5':
                 prob.profit = 'E5:大于90%'
@@ -2269,17 +2265,13 @@ async def get_prob_statistical(request, *, page):
 
             if prob.e3 == 1:
                 prob.e3 = '<span class="uk-badge uk-badge-success">上升</span>'
-            elif prob.e3 == 0:
-                prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
             else:
-                prob.e3 = '-'
+                prob.e3 = '<span class="uk-badge uk-badge-danger">未上升</span>'
 
             if prob.e4 == 1:
                 prob.e4 = '<span class="uk-badge uk-badge-success">大于前日</span>'
-            elif prob.e4 == 0:
-                prob.e4 = '<span class="uk-badge uk-badge-danger">小于前日</span>'
             else:
-                prob.e4 = '-'
+                prob.e4 = '<span class="uk-badge uk-badge-danger">小于前日</span>'
 
             if prob.profit == 'E5':
                 prob.profit = 'E5:大于90%'
@@ -2365,10 +2357,6 @@ async def api_prob_statistical(request, *, date, stock_name, profit, turnover, i
     e2 = int(dailyIndexE.e2)
     e3 = int(dailyIndexE.e3)
     e4 = int(dailyIndexE.e4)
-    if e3 == 0 and e1 == 1 and e2 == 1 and dailyIndexE.e4 == 1:
-        e3 = 2
-    if e4 == 0 and e1 == 1 and e2 == 1 and dailyIndexE.e3 == 1:
-        e4 = 2
 
     if stock_name is None:
         raise APIValueError('stock_name', '股票名称不能为空')
