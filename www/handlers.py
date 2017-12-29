@@ -2248,6 +2248,8 @@ async def get_prob_statistical(request, *, page):
 
             if prob.all_result > 0.9 and prob.profit_result > 0.9 and prob.turnover_result > 0.9 and prob.increase_result > 0.9 and prob.all_denominator > 37:
                 prob.may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
+            elif not prob.buy_or_follow and prob.e1 == 1 and (prob.e3 == 1 or prob.e4 == 1) and prob.all_result > 0.9 and prob.profit_result > 0.7 and prob.turnover_result > 0.7 and prob.increase_result > 0.8 and prob.all_denominator > 10:
+                prob.may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/2仓</span>'
             elif not prob.buy_or_follow and prob.e1 == 1 and (prob.e3 == 1 or prob.e4 == 1) and prob.all_result > 0.8 and prob.profit_result > 0.7 and prob.turnover_result > 0.7 and prob.increase_result > 0.8 and prob.all_denominator > 10:
                 prob.may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
             else:
