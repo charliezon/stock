@@ -2126,6 +2126,11 @@ async def get_condition_prob(request, *, page):
     probs = await ConditionProb.findAll(orderBy='all_result desc, all_denominator desc', limit=((page-1)*configs.stock.prob_items_on_page, configs.stock.prob_items_on_page))
     if len(probs)>0:
         for prob in probs:
+            e1 = prob.e1
+            e2 = prob.e2
+            e3 = prob.e3
+            e4 = prob.e4
+            buy_or_follow = prob.buy_or_follow
             if prob.e1 == 1:
                 prob.e1 = '<span class="uk-badge uk-badge-success">20日上</span>'
             else:
@@ -2203,6 +2208,8 @@ async def get_condition_prob(request, *, page):
             prob.turnover_success = '%s / %s = %s' % (prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
             prob.increase_success = '%s / %s = %s' % (prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
 
+            prob.may_buy = get_may_buy(e1, e2, e3, e4, prob.all_result, prob.profit_result, prob.turnover_result, prob.increase_result, prob.all_denominator, buy_or_follow)
+
     return {
         '__template__': 'condition_prob_records.html',
         'probs': probs
@@ -2230,6 +2237,17 @@ async def handle_prob_statistical(request, date):
         'action': '/api/prob_statistical'
     }
 
+def get_may_buy(e1, e2, e3, e4, all_result, profit_result, turnover_result, increase_result, all_denominator, buy_or_follow):
+    if all_result > 0.9 and profit_result > 0.9 and turnover_result > 0.9 and increase_result > 0.9 and all_denominator > 37:
+        may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
+    elif not buy_or_follow and e1 == 1 and (e3 == 1 or e4 == 1) and all_result > 0.9 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
+        may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/2仓</span>'
+    elif not buy_or_follow and e1 == 1 and (e3 == 1 or e4 == 1) and all_result > 0.8 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
+        may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
+    else:
+        may_buy = '不可买'
+    return may_buy
+
 @asyncio.coroutine
 @get('/prob_statistical/{page}')
 async def get_prob_statistical(request, *, page):
@@ -2246,14 +2264,7 @@ async def get_prob_statistical(request, *, page):
             if dailyIndexE is not None:
                 prob.e1, prob.e2, prob.e3, prob.e4 = dailyIndexE.e1, dailyIndexE.e2, dailyIndexE.e3, dailyIndexE.e4
 
-            if prob.all_result > 0.9 and prob.profit_result > 0.9 and prob.turnover_result > 0.9 and prob.increase_result > 0.9 and prob.all_denominator > 37:
-                prob.may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
-            elif not prob.buy_or_follow and prob.e1 == 1 and (prob.e3 == 1 or prob.e4 == 1) and prob.all_result > 0.9 and prob.profit_result > 0.7 and prob.turnover_result > 0.7 and prob.increase_result > 0.8 and prob.all_denominator > 10:
-                prob.may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/2仓</span>'
-            elif not prob.buy_or_follow and prob.e1 == 1 and (prob.e3 == 1 or prob.e4 == 1) and prob.all_result > 0.8 and prob.profit_result > 0.7 and prob.turnover_result > 0.7 and prob.increase_result > 0.8 and prob.all_denominator > 10:
-                prob.may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
-            else:
-                prob.may_buy = '不可买'
+            prob.may_buy = get_may_buy(prob.e1, prob.e2, prob.e3, prob.e4, prob.all_result, prob.profit_result, prob.turnover_result, prob.increase_result, prob.all_denominator, prob.buy_or_follow)
 
             if prob.e1 == 1:
                 prob.e1 = '<span class="uk-badge uk-badge-success">20日上</span>'

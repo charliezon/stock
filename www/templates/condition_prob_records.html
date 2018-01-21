@@ -2,6 +2,7 @@
     <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed uk-text-nowrap">
         <thead>
             <tr>
+                <th>可否买</th>
                 <th>沪指 E1</th>
                 <th>深指 E2</th>
                 <th>重心 E3</th>
@@ -23,6 +24,7 @@
         <tbody>
             {% for prob in probs %}
                 <tr>
+                    <td>{{prob.may_buy|safe}}</td>
                     <td>{{prob.e1|safe}}</td>
                     <td>{{prob.e2|safe}}</td>
                     <td>{{prob.e3|safe}}</td>
