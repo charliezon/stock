@@ -2238,12 +2238,29 @@ async def handle_prob_statistical(request, date):
     }
 
 def get_may_buy(e1, e2, e3, e4, all_result, profit_result, turnover_result, increase_result, all_denominator, buy_or_follow):
-    if all_result > 0.9 and profit_result > 0.9 and turnover_result > 0.9 and increase_result > 0.9 and all_denominator > 37:
-        may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
-    elif not buy_or_follow and e1 == 1 and (e3 == 1 or e4 == 1) and all_result > 0.9 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
-        may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/2仓</span>'
-    elif not buy_or_follow and e1 == 1 and (e3 == 1 or e4 == 1) and all_result > 0.8 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
-        may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
+    if all_result > 0.9 and profit_result > 0.9 and turnover_result > 0.9 and increase_result > 0.9:
+        if all_denominator > 37:
+            may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
+        elif all_denominator > 10:
+            may_buy = '<span class="uk-badge uk-badge-danger">可以买入1/4仓</span>'
+        else:
+            may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/32仓</span>'
+    elif all_result > 0.9 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
+        if e1 == 1 and (e3 == 1 or e4 == 1):
+            if not buy_or_follow:
+                may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/2仓</span>'
+            else:
+                may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/8仓</span>'
+        else:
+            may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/32仓</span>'
+    elif all_result > 0.8 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
+        if e1 == 1 and (e3 == 1 or e4 == 1):
+            if not buy_or_follow:
+                may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
+            else:
+                may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/16仓</span>'
+        else:
+            may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/32仓</span>'
     else:
         may_buy = '不可买'
     return may_buy
