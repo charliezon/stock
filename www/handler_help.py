@@ -3,7 +3,7 @@
 
 __author__ = 'Chaoliang Zhong'
 
-import asyncio
+import asyncio, math
 from models import DailyParam, AccountRecord, Account, DailyIndex, round_float, last_month, today
 from stock_info import get_index_info
 import logging
@@ -160,13 +160,13 @@ async def get_profit(account_id, date):
     return records[0].total_profit
 
 def less_or_close(a, b):
-  return a < b or np.isclose(a, b)
+  return a < b or math.isclose(a, b)
 
 def greater_or_close(a, b):
-  return a > b or np.isclose(a, b)
+  return a > b or math.isclose(a, b)
 
 def greater_not_close(a, b):
-  return a > b and not np.isclose(a, b)
+  return a > b and not math.isclose(a, b)
 
 def less_not_close(a, b):
-  return a < b and not np.isclose(a, b)
+  return a < b and not math.isclose(a, b)
