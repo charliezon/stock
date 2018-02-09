@@ -158,3 +158,15 @@ async def get_profit(account_id, date):
     if (len(records) == 0):
         return False
     return records[0].total_profit
+
+def less_or_close(a, b):
+  return a < b or np.isclose(a, b)
+
+def greater_or_close(a, b):
+  return a > b or np.isclose(a, b)
+
+def greater_not_close(a, b):
+  return a > b and not np.isclose(a, b)
+
+def less_not_close(a, b):
+  return a < b and not np.isclose(a, b)

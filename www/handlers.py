@@ -15,7 +15,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, DailyConditionProb, DailyIndexE, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
-from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate
+from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate, less_or_close, greater_or_close, greater_not_close, less_not_close
 from orm import get_pool
 from operator import attrgetter
 
@@ -2390,15 +2390,15 @@ async def api_prob_statistical(request, *, date, stock_name, profit, turnover, i
         raise APIValueError('profit', '获利比例不能为空')
     profit = float(profit)
     profit_sign = None
-    profit_sign = 'E5' if profit > 0.9 else profit_sign
-    profit_sign = 'E6' if profit > 0.6 and profit <= 0.9 else profit_sign
-    profit_sign = 'E7' if profit > 0.3 and profit <= 0.6 else profit_sign
-    profit_sign = 'E81' if profit > 0.25 and profit <= 0.3 else profit_sign
-    profit_sign = 'E82' if profit > 0.2 and profit <= 0.25 else profit_sign
-    profit_sign = 'E83' if profit > 0.15 and profit <= 0.2 else profit_sign
-    profit_sign = 'E84' if profit > 0.1 and profit <= 0.15 else profit_sign
-    profit_sign = 'E85' if profit > 0.05 and profit <= 0.1 else profit_sign
-    profit_sign = 'E86' if profit >= 0 and profit <= 0.05 else profit_sign
+    profit_sign = 'E5' if greater_not_close(profit, 0.9) else profit_sign
+    profit_sign = 'E6' if greater_not_close(profit, 0.6) and less_or_close(profit, 0.9) else profit_sign
+    profit_sign = 'E7' if greater_not_close(profit, 0.3) and less_or_close(profit, 0.6) else profit_sign
+    profit_sign = 'E81' if greater_not_close(profit, 0.25) and less_or_close(profit, 0.3) else profit_sign
+    profit_sign = 'E82' if greater_not_close(profit, 0.2) and less_or_close(profit, 0.25) else profit_sign
+    profit_sign = 'E83' if greater_not_close(profit, 0.15) and less_or_close(profit, 0.2) else profit_sign
+    profit_sign = 'E84' if greater_not_close(profit, 0.1) and less_or_close(profit, 0.15) else profit_sign
+    profit_sign = 'E85' if greater_not_close(profit, 0.05) and less_or_close(profit, 0.1) else profit_sign
+    profit_sign = 'E86' if greater_or_close(profit, 0) and less_or_close(profit, 0.05) else profit_sign
 
     if buy_or_follow is None:
         raise APIValueError('buy_or_follow', '追涨买入不能为空')
@@ -2425,23 +2425,23 @@ async def api_prob_statistical(request, *, date, stock_name, profit, turnover, i
     if turnover is None:
         raise APIValueError('stock_name', '无法获取到换手率信息')
     turnover_sign = None
-    turnover_sign = 'E9' if turnover is not None and turnover <= 0.005 else turnover_sign
-    turnover_sign = 'E10' if turnover is not None and turnover > 0.005 and turnover <= 0.01 else turnover_sign
-    turnover_sign = 'E11' if turnover is not None and turnover > 0.01 and turnover <= 0.03 else turnover_sign
-    turnover_sign = 'E12' if turnover is not None and turnover > 0.03 and turnover <= 0.05 else turnover_sign
-    turnover_sign = 'E13' if turnover is not None and turnover > 0.05 and turnover <= 0.10 else turnover_sign
-    turnover_sign = 'E14' if turnover is not None and turnover > 0.10 and turnover <= 0.20 else turnover_sign
-    turnover_sign = 'E15' if turnover is not None and turnover > 0.20 else turnover_sign
+    turnover_sign = 'E9' if turnover is not None and less_or_close(turnover, 0.005) else turnover_sign
+    turnover_sign = 'E10' if turnover is not None and greater_not_close(turnover, 0.005) and less_or_close(turnover, 0.01) else turnover_sign
+    turnover_sign = 'E11' if turnover is not None and greater_not_close(turnover, 0.01) and less_or_close(turnover, 0.03) else turnover_sign
+    turnover_sign = 'E12' if turnover is not None and greater_not_close(turnover, 0.03) and less_or_close(turnover, 0.05) else turnover_sign
+    turnover_sign = 'E13' if turnover is not None and greater_not_close(turnover, 0.05) and less_or_close(turnover, 0.1) else turnover_sign
+    turnover_sign = 'E14' if turnover is not None and greater_not_close(turnover, 0.1) and less_or_close(turnover, 0.2) else turnover_sign
+    turnover_sign = 'E15' if turnover is not None and greater_not_close(turnover, 0.2) else turnover_sign
 
     if increase is None:
         raise APIValueError('stock_name', '无法获取到涨跌信息')
     increase_sign = None
-    increase_sign = 'E16' if increase is not None and increase <= 0 else increase_sign
-    increase_sign = 'E17' if increase is not None and increase > 0 and increase <= 0.02 else increase_sign
-    increase_sign = 'E18' if increase is not None and increase > 0.02 and increase <= 0.04 else increase_sign
-    increase_sign = 'E19' if increase is not None and increase > 0.04 and increase <= 0.06 else increase_sign
-    increase_sign = 'E20' if increase is not None and increase > 0.06 and increase <= 0.09 else increase_sign
-    increase_sign = 'E21' if increase is not None and increase > 0.09 else increase_sign
+    increase_sign = 'E16' if increase is not None and less_or_close(increase, 0) else increase_sign
+    increase_sign = 'E17' if increase is not None and greater_not_close(increase, 0) and less_or_close(increase, 0.02) else increase_sign
+    increase_sign = 'E18' if increase is not None and greater_not_close(increase, 0.02) and less_or_close(increase, 0.04) else increase_sign
+    increase_sign = 'E19' if increase is not None and greater_not_close(increase, 0.04) and less_or_close(increase, 0.06) else increase_sign
+    increase_sign = 'E20' if increase is not None and greater_not_close(increase, 0.06) and less_or_close(increase, 0.09) else increase_sign
+    increase_sign = 'E21' if increase is not None and greater_not_close(increase, 0.09) else increase_sign
 
     cps = await ConditionProb.findAll('e1=? and e2=? and e3=? and e4=? and profit=? and turnover=? and increase=? and buy_or_follow=?', [e1, e2, e3, e4, profit_sign, turnover_sign, increase_sign, buy_or_follow])
 
