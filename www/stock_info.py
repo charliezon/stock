@@ -11,10 +11,10 @@ from config import configs
 from models import today, round_float
 
 def current_shenzhen_index_info():
-    return current_index_info(get_new_code('399001'))
+    return current_index_info(get_new_code('399001', True))
 
 def current_shanghai_index_info():
-    return current_index_info(get_new_code('000001'))
+    return current_index_info(get_new_code('000001', True))
 
 def current_index_info(index_str):
     result = False
@@ -44,21 +44,23 @@ def get_shanghai_index_info(date):
 def get_index_info(index_str, date):
     index = False
     if date >= today():
-        index = current_index_info(get_new_code(index_str))
+        index = current_index_info(get_new_code(index_str, True))
     else:
         numbers = date.split('-')
-        index = find_close_price(index_str, int(numbers[0]), int(numbers[1]), int(numbers[2]))
+        index = find_close_price(index_str, int(numbers[0]), int(numbers[1]), int(numbers[2]), True)
     return index
 
-def get_new_code(code):
-    if (code[:1] == '0' or code[:1] == '3') and (code != '000001'):
+def get_new_code(code, is_index):
+    if code == '000001' and is_index:
+        return 'sh' + code;
+    if code[:1] == '0' or code[:1] == '3':
         return 'sz' + code;
     else:
         return 'sh' + code;
 
 def find_price(stock_code, pos):
     result = False
-    new_code = get_new_code(stock_code)
+    new_code = get_new_code(stock_code, False)
     try:
         with request.urlopen('http://hq.sinajs.cn/list='+new_code) as f:
             if f.status == 200:
@@ -83,13 +85,13 @@ def find_current_price(stock_code):
 def find_open_price_with_code(stock_code):
     return find_price(stock_code, 1)
 
-def find_open_price(stock_code, year, month, day):
+def find_open_price(stock_code, year, month, day, is_index=False):
     result = False
     if (year >= 2000):
         new_year = year - 2000
     else:
         new_year = year -1900
-    new_code = get_new_code(stock_code)
+    new_code = get_new_code(stock_code, is_index)
     if len(str(month)) < 2:
         new_month = '0'+str(month)
     else:
@@ -121,7 +123,7 @@ def find_open_price(stock_code, year, month, day):
                             except ValueError as e:
                                 logging.error(e)
                         elif numbers[0].strip() > date and not pre_number:
-                            result = find_open_price(stock_code, year-1, 12, 31)
+                            result = find_open_price(stock_code, year-1, 12, 31, is_index)
                             break
                         if len(numbers) >= 2:
                             pre_number = numbers[1]
@@ -132,13 +134,13 @@ def find_open_price(stock_code, year, month, day):
     finally:
         return result
 
-def find_close_price(stock_code, year, month, day):
+def find_close_price(stock_code, year, month, day, is_index=False):
     result = False
     if (year >= 2000):
         new_year = year - 2000
     else:
         new_year = year -1900
-    new_code = get_new_code(stock_code)
+    new_code = get_new_code(stock_code, is_index)
     if len(str(month)) < 2:
         new_month = '0'+str(month)
     else:
@@ -172,7 +174,7 @@ def find_close_price(stock_code, year, month, day):
                             except ValueError as e:
                                 logging.error(e)
                         elif last_day > date and not pre_number:
-                            result = find_close_price(stock_code, year-1, 12, 31)
+                            result = find_close_price(stock_code, year-1, 12, 31, is_index)
                             break
                         if len(numbers) >= 2:
                             pre_number = numbers[2]
@@ -206,7 +208,7 @@ def get_stock_via_name(name):
 # http://qt.gtimg.cn/q=sh600919 沪指
 # http://qt.gtimg.cn/q=sz000858 深指
 def get_stock_via_code(code):
-    new_code = get_new_code(code)
+    new_code = get_new_code(code, False)
     with request.urlopen('http://qt.gtimg.cn/q='+new_code) as f:
         if f.status == 200:
             data = f.read()
