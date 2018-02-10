@@ -2205,10 +2205,38 @@ async def get_condition_prob(request, *, page):
             elif prob.buy_or_follow == 3:
                 prob.buy_or_follow = '<span class="uk-badge uk-badge-warning">全部</span>'
 
-            prob.all_success = '%s / %s = %s' % (prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
-            prob.profit_success = '%s / %s = %s' % (prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
-            prob.turnover_success = '%s / %s = %s' % (prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
-            prob.increase_success = '%s / %s = %s' % (prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
+            high_span = '<span class="uk-badge uk-badge-success">'
+            mid_span = '<span class="uk-badge uk-badge-warning">'
+            other_span = '<span>'
+
+            all_span = other_span
+            if greater_or_close(prob.all_result, 0.9):
+                all_span = high_span
+            elif greater_or_close(prob.all_result, 0.8):
+                all_span = mid_span
+
+            prob.all_success = '%s%s / %s = %s</span>' % (all_span, prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
+
+            profit_span = other_span
+            if greater_or_close(prob.profit_result, 0.9):
+                profit_span = high_span
+            elif greater_or_close(prob.profit_result, 0.8):
+                profit_span = mid_span
+            prob.profit_success = '%s%s / %s = %s</span>' % (profit_span, prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
+
+            turnover_span = other_span
+            if greater_or_close(prob.turnover_result, 0.9):
+                turnover_span = high_span
+            elif greater_or_close(prob.turnover_result, 0.8):
+                turnover_span = mid_span
+            prob.turnover_success = '%s%s / %s = %s</span>' % (turnover_span, prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
+
+            increase_span = other_span
+            if greater_or_close(prob.increase_result, 0.9):
+                increase_span = high_span
+            elif greater_or_close(prob.increase_result, 0.8):
+                increase_span = mid_span
+            prob.increase_success = '%s%s / %s = %s</span>' % (increase_span, prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
 
             prob.may_buy = get_may_buy(e1, e2, e3, e4, prob.all_result, prob.profit_result, prob.turnover_result, prob.increase_result, prob.all_denominator, buy_or_follow)
 
@@ -2364,31 +2392,31 @@ async def get_prob_statistical(request, *, page):
             other_span = '<span>'
 
             all_span = other_span
-            if prob.all_result > 0.9 or math.isclose(prob.all_result, 0.9):
+            if greater_or_close(prob.all_result, 0.9):
                 all_span = high_span
-            elif prob.all_result > 0.8 or math.isclose(prob.all_result, 0.8):
+            elif greater_or_close(prob.all_result, 0.8):
                 all_span = mid_span
 
             prob.all_success = '%s%s / %s = %s</span>' % (all_span, prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
 
             profit_span = other_span
-            if prob.profit_result > 0.9 or math.isclose(prob.profit_result, 0.9):
+            if greater_or_close(prob.profit_result, 0.9):
                 profit_span = high_span
-            elif prob.profit_result > 0.8 or math.isclose(prob.profit_result, 0.8):
+            elif greater_or_close(prob.profit_result, 0.8):
                 profit_span = mid_span
             prob.profit_success = '%s%s / %s = %s</span>' % (profit_span, prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
 
             turnover_span = other_span
-            if prob.turnover_result > 0.9 or math.isclose(prob.turnover_result, 0.9):
+            if greater_or_close(prob.turnover_result, 0.9):
                 turnover_span = high_span
-            elif prob.turnover_result > 0.8 or math.isclose(prob.turnover_result, 0.8):
+            elif greater_or_close(prob.turnover_result, 0.8):
                 turnover_span = mid_span
             prob.turnover_success = '%s%s / %s = %s</span>' % (turnover_span, prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
 
             increase_span = other_span
-            if prob.increase_result > 0.9 or math.isclose(prob.increase_result, 0.9):
+            if greater_or_close(prob.increase_result, 0.9):
                 increase_span = high_span
-            elif prob.increase_result > 0.8 or math.isclose(prob.increase_result, 0.8):
+            elif greater_or_close(prob.increase_result, 0.8):
                 increase_span = mid_span
             prob.increase_success = '%s%s / %s = %s</span>' % (increase_span, prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
 
