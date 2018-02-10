@@ -2383,14 +2383,14 @@ async def get_prob_statistical(request, *, page):
                 turnover_span = high_span
             elif prob.turnover_result > 0.8 or math.isclose(prob.turnover_result, 0.8):
                 turnover_span = mid_span
-            prob.turnover_success = '%s%s / %s = %s</span>' % (prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
+            prob.turnover_success = '%s%s / %s = %s</span>' % (turnover_span, prob.turnover_numerator, prob.turnover_denominator, round_float(prob.turnover_result, 4))
 
             increase_span = other_span
             if prob.increase_result > 0.9 or math.isclose(prob.increase_result, 0.9):
                 increase_span = high_span
             elif prob.increase_result > 0.8 or math.isclose(prob.increase_result, 0.8):
                 increase_span = mid_span
-            prob.increase_success = '%s%s / %s = %s</span>' % (prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
+            prob.increase_success = '%s%s / %s = %s</span>' % (increase_span, prob.increase_numerator, prob.increase_denominator, round_float(prob.increase_result, 4))
 
     return {
         '__template__': 'prob_statistical_records.html',
