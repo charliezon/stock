@@ -2198,10 +2198,12 @@ async def get_condition_prob(request, *, page):
             if prob.increase == 'E21':
                 prob.increase = 'E21:大于9%'
 
-            if prob.buy_or_follow:
+            if prob.buy_or_follow == 1:
                 prob.buy_or_follow = '<span class="uk-badge uk-badge-danger">买入</span>'
-            else:
+            elif prob.buy_or_follow == 2:
                 prob.buy_or_follow = '<span class="uk-badge uk-badge-success">追涨</span>'
+            elif prob.buy_or_follow == 3:
+                prob.buy_or_follow = '<span class="uk-badge uk-badge-warning">全部</span>'
 
             prob.all_success = '%s / %s = %s' % (prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
             prob.profit_success = '%s / %s = %s' % (prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
@@ -2247,7 +2249,7 @@ def get_may_buy(e1, e2, e3, e4, all_result, profit_result, turnover_result, incr
             may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/32仓</span>'
     elif all_result > 0.9 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
         if e1 == 1 and (e3 == 1 or e4 == 1):
-            if not buy_or_follow:
+            if buy_or_follow == 2:
                 may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/2仓</span>'
             else:
                 may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/8仓</span>'
@@ -2255,7 +2257,7 @@ def get_may_buy(e1, e2, e3, e4, all_result, profit_result, turnover_result, incr
             may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/32仓</span>'
     elif all_result > 0.8 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
         if e1 == 1 and (e3 == 1 or e4 == 1):
-            if not buy_or_follow:
+            if buy_or_follow == 2:
                 may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/4仓</span>'
             else:
                 may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/16仓</span>'
@@ -2350,10 +2352,12 @@ async def get_prob_statistical(request, *, page):
             if prob.increase == 'E21':
                 prob.increase = 'E21:大于9%'
 
-            if prob.buy_or_follow:
+            if prob.buy_or_follow == 1:
                 prob.buy_or_follow = '<span class="uk-badge uk-badge-danger">买入</span>'
-            else:
+            elif prob.buy_or_follow == 2:
                 prob.buy_or_follow = '<span class="uk-badge uk-badge-success">追涨</span>'
+            elif prob.buy_or_follow == 3:
+                prob.buy_or_follow = '<span class="uk-badge uk-badge-warning">全部</span>'
 
             prob.all_success = '%s / %s = %s' % (prob.all_numerator, prob.all_denominator, round_float(prob.all_result, 4))
             prob.profit_success = '%s / %s = %s' % (prob.profit_numerator, prob.profit_denominator, round_float(prob.profit_result, 4))
@@ -2421,7 +2425,7 @@ async def api_prob_statistical(request, *, date, stock_name, profit, turnover, i
         raise APIValueError('buy_or_follow', '追涨买入不能为空')
     buy_or_follow = int(buy_or_follow)
 
-    if (buy_or_follow):
+    if buy_or_follow == 1:
         win_percent = 0.04
     else:
         win_percent = 0.034
@@ -2433,8 +2437,8 @@ async def api_prob_statistical(request, *, date, stock_name, profit, turnover, i
         stock_info = get_stock_via_code(stock_code)
         if stock_info == False:
             raise APIValueError('stock_name', '无法获取到股票信息')
-        turnover = stock_info[0]['turnover']/100
-        increase = stock_info[0]['increase']/100
+        turnover = stock_info[0]['turnover']
+        increase = stock_info[0]['increase']
     else:
         turnover = float(turnover)
         increase = float(increase)
@@ -2442,23 +2446,23 @@ async def api_prob_statistical(request, *, date, stock_name, profit, turnover, i
     if turnover is None:
         raise APIValueError('stock_name', '无法获取到换手率信息')
     turnover_sign = None
-    turnover_sign = 'E9' if turnover is not None and less_or_close(turnover, 0.005) else turnover_sign
-    turnover_sign = 'E10' if turnover is not None and greater_not_close(turnover, 0.005) and less_or_close(turnover, 0.01) else turnover_sign
-    turnover_sign = 'E11' if turnover is not None and greater_not_close(turnover, 0.01) and less_or_close(turnover, 0.03) else turnover_sign
-    turnover_sign = 'E12' if turnover is not None and greater_not_close(turnover, 0.03) and less_or_close(turnover, 0.05) else turnover_sign
-    turnover_sign = 'E13' if turnover is not None and greater_not_close(turnover, 0.05) and less_or_close(turnover, 0.1) else turnover_sign
-    turnover_sign = 'E14' if turnover is not None and greater_not_close(turnover, 0.1) and less_or_close(turnover, 0.2) else turnover_sign
-    turnover_sign = 'E15' if turnover is not None and greater_not_close(turnover, 0.2) else turnover_sign
+    turnover_sign = 'E9' if turnover is not None and less_or_close(turnover, 0.5) else turnover_sign
+    turnover_sign = 'E10' if turnover is not None and greater_not_close(turnover, 0.5) and less_or_close(turnover, 1) else turnover_sign
+    turnover_sign = 'E11' if turnover is not None and greater_not_close(turnover, 1) and less_or_close(turnover, 3) else turnover_sign
+    turnover_sign = 'E12' if turnover is not None and greater_not_close(turnover, 3) and less_or_close(turnover, 5) else turnover_sign
+    turnover_sign = 'E13' if turnover is not None and greater_not_close(turnover, 5) and less_or_close(turnover, 10) else turnover_sign
+    turnover_sign = 'E14' if turnover is not None and greater_not_close(turnover, 10) and less_or_close(turnover, 20) else turnover_sign
+    turnover_sign = 'E15' if turnover is not None and greater_not_close(turnover, 20) else turnover_sign
 
     if increase is None:
         raise APIValueError('stock_name', '无法获取到涨跌信息')
     increase_sign = None
     increase_sign = 'E16' if increase is not None and less_or_close(increase, 0) else increase_sign
-    increase_sign = 'E17' if increase is not None and greater_not_close(increase, 0) and less_or_close(increase, 0.02) else increase_sign
-    increase_sign = 'E18' if increase is not None and greater_not_close(increase, 0.02) and less_or_close(increase, 0.04) else increase_sign
-    increase_sign = 'E19' if increase is not None and greater_not_close(increase, 0.04) and less_or_close(increase, 0.06) else increase_sign
-    increase_sign = 'E20' if increase is not None and greater_not_close(increase, 0.06) and less_or_close(increase, 0.09) else increase_sign
-    increase_sign = 'E21' if increase is not None and greater_not_close(increase, 0.09) else increase_sign
+    increase_sign = 'E17' if increase is not None and greater_not_close(increase, 0) and less_or_close(increase, 2) else increase_sign
+    increase_sign = 'E18' if increase is not None and greater_not_close(increase, 2) and less_or_close(increase, 4) else increase_sign
+    increase_sign = 'E19' if increase is not None and greater_not_close(increase, 4) and less_or_close(increase, 6) else increase_sign
+    increase_sign = 'E20' if increase is not None and greater_not_close(increase, 6) and less_or_close(increase, 9) else increase_sign
+    increase_sign = 'E21' if increase is not None and greater_not_close(increase, 9) else increase_sign
 
     cps = await ConditionProb.findAll('e1=? and e2=? and e3=? and e4=? and profit=? and turnover=? and increase=? and buy_or_follow=?', [e1, e2, e3, e4, profit_sign, turnover_sign, increase_sign, buy_or_follow])
 
