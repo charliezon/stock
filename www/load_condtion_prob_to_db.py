@@ -80,9 +80,11 @@ for key in cache:
         increase_sign = keys[6]
 
         if (keys[7] == 'buy'):
-            buy_or_follow = True
-        else:
-            buy_or_follow = False
+            buy_or_follow = 1
+        elif (keys[7] == 'follow'):
+            buy_or_follow = 2
+        elif (keys[7] == 'all'):
+            buy_or_follow = 3
 
         win_percent = round_float(float(keys[8]), 3)
         lose_percent = round_float(float(keys[9]), 3)
