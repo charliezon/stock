@@ -31,10 +31,10 @@
                     {% if accounts %}
                     <li class="uk-parent" data-uk-dropdown>
                         <a href="#0"><i class="uk-icon-exchange"></i> 切换账户</a>
-                        <div class="uk-dropdown uk-dropdown-navbar">
+                        <div class="uk-dropdown uk-dropdown-navbar" style="width:400px;">
                             <ul class="uk-nav uk-nav-navbar">
                                 {% for acc in accounts %}
-                                    <li><a href="/account/{{acc.id}}"><i class="uk-icon-credit-card"></i>  {{acc.name}}</a></li>
+                                    <li><a href="/account/{{acc.id}}"><i class="uk-icon-credit-card"></i>  {{acc.name}}  -  <span class="uk-badge uk-badge-success">{{acc.update_date}}</span></a></li>
                                 {% endfor %}
                             </ul>
                         </div>

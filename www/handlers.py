@@ -15,7 +15,7 @@ from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissio
 from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, DailyConditionProb, DailyIndexE, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
-from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate, less_or_close, greater_or_close, greater_not_close, less_not_close
+from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate, less_or_close, greater_or_close, greater_not_close, less_not_close, add_account_update_date
 from orm import get_pool
 from operator import attrgetter
 
@@ -124,6 +124,7 @@ async def create_account(request):
     if not has_logged_in(request):
         return web.HTTPFound('/signin')
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    all_accounts = await add_account_update_date(all_accounts)
     return {
         '__template__': 'create_account.html',
         'accounts': all_accounts,
@@ -258,6 +259,7 @@ async def edit_account(request, *, id):
     accounts = await Account.findAll('id=? and user_id=?', [id, request.__user__.id])
     if len(accounts)>0:
         all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+        all_accounts = await add_account_update_date(all_accounts)
         return {
             '__template__': 'edit_account.html',
             'accounts': all_accounts,
@@ -435,6 +437,9 @@ async def get_account(request, *, id):
         account = all_accounts[0]
     else:
         return web.HTTPFound('/account/create')
+
+    all_accounts = await add_account_update_date(all_accounts)
+
     account_records = await AccountRecord.findAll('account_id=?', [account.id], orderBy='date desc')
     most_recent_account_record = False
 
@@ -1706,6 +1711,7 @@ async def do_param_statistical(request, *, date):
 async def handle_param_statistical(request, date):
     result = await get_index_info(request, date)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    all_accounts = await add_account_update_date(all_accounts)
     dp = await DailyParam.find(date)
     di = await DailyIndexE.find(date)
     if di is None:
@@ -2005,6 +2011,7 @@ async def do_params(request):
         return web.HTTPFound('/signin')
     check_admin(request)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    all_accounts = await add_account_update_date(all_accounts)
     dps = await DailyParam.findAll()
     return {
         '__template__': 'params.html',
@@ -2106,6 +2113,7 @@ async def do_condition_prob(request):
         return web.HTTPFound('/signin')
     check_admin(request)
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    all_accounts = await add_account_update_date(all_accounts)
     probs = await ConditionProb.findAll()
     return {
         '__template__': 'condition_prob.html',
@@ -2258,6 +2266,7 @@ async def do_prob_statistical_2(request):
 @asyncio.coroutine
 async def handle_prob_statistical(request, date):
     all_accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    all_accounts = await add_account_update_date(all_accounts)
     probs = await DailyConditionProb.findAll()
     return {
         '__template__': 'prob_statistical.html',

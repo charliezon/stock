@@ -10,6 +10,14 @@ import logging
 from orm import get_pool
 
 @asyncio.coroutine
+async def add_account_update_date(accounts):
+    for a in accounts:
+        ars = await AccountRecord.findAll('account_id=?', [a.id], orderBy='date desc', limit=1)
+        if len(ars) == 1:
+            a.update_date = ars[0].date
+    return accounts
+
+@asyncio.coroutine
 async def get_stock_method(stock_name, buy_date):
     dps = await DailyParam.findAll('date<?', [buy_date], orderBy='date desc', limit=1)
     if len(dps) == 1:
