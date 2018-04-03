@@ -1693,6 +1693,19 @@ async def api_up_to_date(request, *, date, account_id):
     return accounts[0]
 
 @asyncio.coroutine
+@get('/up_to_date_all')
+async def api_up_to_date_all(request):
+    must_log_in(request)
+    accounts = await Account.findAll('user_id=?', [request.__user__.id])
+    if len(accounts) <=0:
+        raise APIPermissionError()
+
+    for account in accounts:
+        account_record = await find_account_record(account.id, today())
+
+    return web.HTTPFound('/account')
+
+@asyncio.coroutine
 @get('/param_statistical')
 async def do_param_statistica_1(request):
     return await handle_param_statistical(request, today())
