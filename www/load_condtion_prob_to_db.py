@@ -44,6 +44,7 @@ conn= MySQLdb.connect(
         user='root',
         passwd='rootroot',
         db ='stock',
+        charset="utf8"
         )
 cur = conn.cursor()
 
