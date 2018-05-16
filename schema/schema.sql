@@ -216,3 +216,19 @@ create table daily_condition_prob (
     key `idx_created_at` (`created_at`),
     primary key (`id`)
 ) engine=innodb default charset=utf8;
+
+create table stock_success_detail (
+    `id` varchar(50) not null,
+    `date` varchar(50) not null,
+    `name` varchar(50) not null,
+    `buy_or_follow` int(1) not null,
+    `e1` int(1) not null,
+    `e2` int(1) not null,
+    `e3` int(1) not null,
+    `e4` int(1) not null,
+    `winner` varchar(50) not null,
+    `turnover` varchar(50) not null,
+    `increase` varchar(50) not null,
+    `result` int(1) not null,
+    primary key (`id`)
+) engine=innodb default charset=utf8;

@@ -47,7 +47,7 @@ conn= MySQLdb.connect(
         )
 cur = conn.cursor()
 
-cache = load_cache('data/cache.json')
+cache = load_cache('data/cache_1.034_0.905.json')
 
 id = 1
 
@@ -118,6 +118,45 @@ for key in cache:
         sqli="insert into condition_prob values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
         cur.execute(sqli , (str(id), e1, e2, e3, e4, profit_sign, turnover_sign, increase_sign, buy_or_follow, win_percent, lose_percent, lose_cache, days, all_numerator, all_denominator, all_result, profit_numerator, profit_denominator, profit_result, turnover_numerator, turnover_denominator, turnover_result, increase_numerator, increase_denominator, increase_result))
         id += 1
+
+stock_detail = load_cache('data/list_1.034_0.905.json')
+
+id = 0
+for stock in stock_detail:
+    if (stock['signal'] == 'buy'):
+        buy_or_follow = 1
+    elif (stock['signal'] == 'follow'):
+        buy_or_follow = 2
+    elif (stock['signal'] == 'all'):
+        buy_or_follow = 3
+
+    if (stock['e1'] == 'E1'):
+        e1 = 1
+    else:
+        e1 = 0
+
+    if (stock['e2'] == 'E2'):
+        e2 = 1
+    else:
+        e2 = 0
+
+    if (stock['e3'] == 'E3'):
+        e3 = 1
+    else:
+        e3 = 0
+
+    if (stock['e4'] == 'E4'):
+        e4 = 1
+    else:
+        e4 = 0
+
+    if stock['result'] == 'success':
+        result = 1
+    else:
+        result = 0
+    sqli="insert into stock_success_detail values(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+    cur.execute(sqli , (str(id), stock['date'], stock['name'], buy_or_follow, e1, e2, e3, e4, stock['winner'], stock['turnover'], stock['increase'], result))
+    id += 1
 
 cur.close()
 conn.commit()
