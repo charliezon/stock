@@ -253,3 +253,19 @@ class DailyConditionProb(Model):
     increase_denominator =  IntegerField()
     increase_result = FloatField()
     created_at = FloatField(default=time.time)
+
+class StockSuccessDetail(Model):
+    __table__ = 'stock_success_detail'
+
+    id = StringField(primary_key=True, default=next_id, ddl='varchar(50)')
+    date = StringField(default=today, ddl='varchar(50)')
+    name = StringField(ddl='varchar(50)')
+    buy_or_follow = IntegerField()
+    e1 = IntegerField()
+    e2 = IntegerField()
+    e3 = IntegerField()
+    e4 = IntegerField()
+    winner = StringField(ddl='varchar(50)')
+    turnover = StringField(ddl='varchar(50)')
+    increase = StringField(ddl='varchar(50)')
+    result = IntegerField()

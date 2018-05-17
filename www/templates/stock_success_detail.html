@@ -1,0 +1,178 @@
+{% extends '__base__.html' %}
+
+{% block title %}历史个股成功率{% endblock %}
+
+{% block beforehead %}
+
+<script type="text/javascript">
+
+function initVM(data) {
+    var vm = new Vue({
+        el: '#vm',
+        data: data,
+        methods: {
+            submit: function (event) {
+                event.preventDefault();
+                location.href = '/stock_success_detail/'+this.$data.twenty_days_line+'/'
+                    +this.$data.sz_twenty_days_line+'/'+this.$data.sh_sz_upper
+                    +'/'+this.$data.sh_sz_bigger+'/'+this.$data.profit
+                    +'/'+this.$data.turnover+'/'+this.$data.increase+'/'
+                    +this.$data.buy_or_follow+'/1';
+            }
+        }
+    });
+    $('#vm').show();
+}
+
+$(function () {
+    $('#loading').hide();
+    initVM({});
+});
+
+$(document).ready(function(){
+    {% if amount>0 %}
+        $('#stock-pagination').on('select.uk.pagination', function(e, pageIndex){
+            location.href = '/stock_success_detail/'+{{e1}}+'/'
+                +{{e2}}+'/'+{{e3}}
+                +'/'+{{e4}}+'/'+'{{winner}}'
+                +'/'+'{{turnover}}'+'/'+'{{increase}}'+'/'
+                +{{buy_or_follow}}+'/'+(pageIndex+1);
+        });
+    {% endif %}
+});
+
+</script>
+{% endblock %}
+
+{% block content %}
+
+<h2>历史个股成功率</h2>
+<div id="vm" class="uk-width-1-1">
+    <form v-on="submit: submit" class="uk-form uk-form-horizontal">
+        <div class="uk-alert uk-alert-danger uk-hidden"></div>
+        <div class="uk-form-row">
+            <label class="uk-form-label"><strong>沪指位于20日线以上吗？(E1)</strong></label>
+            <div class="uk-form-controls uk-form-controls-text">
+                <label><input type="radio" v-model="twenty_days_line" id="higher" name="twenty_days_line" value="1"> 是</label>
+                <label><input type="radio" v-model="twenty_days_line" id="lower" name="twenty_days_line" value="0"> 否</label>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label"><strong>深指位于20日线以上吗？(E2)</strong></label>
+            <div class="uk-form-controls uk-form-controls-text">
+                <label><input type="radio" v-model="sz_twenty_days_line" id="sz_higher" name="sz_twenty_days_line" value="1"> 是</label>
+                <label><input type="radio" v-model="sz_twenty_days_line" id="sz_lower" name="sz_twenty_days_line" value="0"> 否</label>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label"><strong>沪深重心皆上升吗？(E3)</strong></label>
+            <div class="uk-form-controls uk-form-controls-text">
+                <label><input type="radio" v-model="sh_sz_upper" id="sh_sz_upper_yes" name="sh_sz_upper" value="1"> 是</label>
+                <label><input type="radio" v-model="sh_sz_upper" id="sh_sz_upper_no" name="sh_sz_upper" value="0"> 否</label>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label"><strong>沪深都收阳且收盘都大于前一日开收盘之大者吗？(E4)</strong></label>
+            <div class="uk-form-controls uk-form-controls-text">
+                <label><input type="radio" v-model="sh_sz_bigger" id="sh_sz_bigger_yes" name="sh_sz_bigger" value="1"> 是</label>
+                <label><input type="radio" v-model="sh_sz_bigger" id="sh_sz_bigger_no" name="sh_sz_bigger" value="0"> 否</label>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label" for="profit"><strong>获利比例</strong></label>
+            <div class="uk-form-controls">
+                <select id="profit" v-model="profit" name="profit" class="uk-width-1-1">
+                    <option>E5</option>
+                    <option>E6</option>
+                    <option>E7</option>
+                    <option>E81</option>
+                    <option>E82</option>
+                    <option>E83</option>
+                    <option>E84</option>
+                    <option>E85</option>
+                    <option>E86</option>
+                </select>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label" for="turnover"><strong>换手率</strong></label>
+            <div class="uk-form-controls">
+                <select id="turnover" v-model="turnover" name="turnover" class="uk-width-1-1">
+                    <option>E9</option>
+                    <option>E10</option>
+                    <option>E11</option>
+                    <option>E12</option>
+                    <option>E13</option>
+                    <option>E14</option>
+                    <option>E15</option>
+                </select>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label" for="increase"><strong>涨幅</strong></label>
+            <div class="uk-form-controls">
+                <select id="increase" v-model="increase" name="increase" class="uk-width-1-1">
+                    <option>E16</option>
+                    <option>E17</option>
+                    <option>E18</option>
+                    <option>E19</option>
+                    <option>E20</option>
+                    <option>E21</option>
+                </select>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <label class="uk-form-label"><strong>追涨或买入？</strong></label>
+            <div class="uk-form-controls uk-form-controls-text">
+                <label><input type="radio" v-model="buy_or_follow" id="buy_buy_or_follow" name="buy_or_follow" value="1"> 买入</label>
+                <label><input type="radio" v-model="buy_or_follow" id="follow_buy_or_follow" name="buy_or_follow" value="2"> 追涨</label>
+            </div>
+        </div>
+        <div class="uk-form-row">
+            <button type="submit" class="uk-button uk-button-primary"><i class="uk-icon-save"></i> 查询</button>
+        </div>
+    </form>
+</div>
+
+    {% if amount>0 %}
+        {% if stock_success_details|length>0 %}
+            <table class="uk-table uk-table-hover uk-table-striped uk-table-condensed uk-text-nowrap">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>股票</th>
+                        <th>追涨买入</th>
+                        <th>是否成功</th>
+                        <th>E1</th>
+                        <th>E2</th>
+                        <th>E3</th>
+                        <th>E4</th>
+                        <th>获利比例</th>
+                        <th>换手率</th>
+                        <th>涨幅</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stock in stock_success_details %}
+                    <tr>
+                        <td>{{stock.date}}</td>
+                        <td>{{stock.name}}</td>
+                        <td><span class="uk-badge uk-badge-{% if stock.buy_or_follow==1 %}success{% else %}danger{% endif %}">{% if stock.buy_or_follow==1 %}买入{% else %}追涨{% endif %}</span></td>
+                        <td><span class="uk-badge uk-badge-{% if stock.result==1 %}success{% else %}danger{% endif %}">{% if stock.result==1 %}成功{% else %}失败{% endif %}</span></td>
+                        <td><span class="uk-badge uk-badge-{% if stock.e1 %}success{% else %}danger{% endif %}">{% if stock.e1 %}是{% else %}否{% endif %}</span></td>
+                        <td><span class="uk-badge uk-badge-{% if stock.e2 %}success{% else %}danger{% endif %}">{% if stock.e2 %}是{% else %}否{% endif %}</span></td>
+                        <td><span class="uk-badge uk-badge-{% if stock.e3 %}success{% else %}danger{% endif %}">{% if stock.e3 %}是{% else %}否{% endif %}</span></td>
+                        <td><span class="uk-badge uk-badge-{% if stock.e4 %}success{% else %}danger{% endif %}">{% if stock.e4 %}是{% else %}否{% endif %}</span></td>
+                        <td>{{stock.winner}}</td>
+                        <td>{{stock.turnover}}</td>
+                        <td>{{stock.increase}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        {% if amount>items_on_page %}
+            <ul id="stock-pagination" class="uk-pagination" data-uk-pagination="{items:{{amount}}, itemsOnPage:{{items_on_page}}, currentPage:{{page-1}}}"></ul>
+        {% endif %}
+    {% endif %}
+{% endblock %}

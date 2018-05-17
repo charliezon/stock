@@ -12,7 +12,7 @@ from aiohttp import web
 from coroweb import get, post
 from apis import APIValueError, APIResourceNotFoundError, APIError, APIPermissionError
 
-from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, DailyConditionProb, DailyIndexE, next_id, today, convert_date, round_float, this_month, last_month
+from models import User, Account, AccountRecord, StockHoldRecord, StockTradeRecord, AccountAssetChange, DailyParam, ConditionProb, DailyConditionProb, DailyIndexE, StockSuccessDetail, next_id, today, convert_date, round_float, this_month, last_month
 from config import configs
 from stock_info import get_current_price, compute_fee, get_sell_price, get_stock_via_name, get_stock_via_code, get_shanghai_index_info, find_open_price_with_code
 from handler_help import get_stock_method, get_profit_rate_by_month, get_profit_rate, get_shanghai_profit_rate_by_month, get_shenzhen_profit_rate_by_month, get_shenzhen_profit_rate, get_shanghai_profit_rate, less_or_close, greater_or_close, greater_not_close, less_not_close, add_account_update_date
@@ -143,6 +143,48 @@ async def advanced_create_account(request):
         'action': '/api/advanced/accounts'
     }
 
+@asyncio.coroutine
+@get('/stock_success_detail')
+async def stock_success_detail(request):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    return {
+        '__template__': 'stock_success_detail.html',
+        'amount': 0,
+        'stock_success_details': []
+    }
+
+@asyncio.coroutine
+@get('/stock_success_detail/{e1}/{e2}/{e3}/{e4}/{profit}/{turnover}/{increase}/{buy_or_follow}/{page}')
+async def stock_success_detail_2(request, *, e1, e2, e3, e4, profit, turnover, increase, buy_or_follow, page):
+    if not has_logged_in(request):
+        return web.HTTPFound('/signin')
+    try:
+        e1 = int(e1)
+        e2 = int(e2)
+        e3 = int(e3)
+        e4 = int(e4)
+        buy_or_follow = int(buy_or_follow)
+        page = int(page)
+    except ValueError as e:
+        raise APIPermissionError()
+    stock_success_details = await StockSuccessDetail.findAll('e1=? and e2=? and e3=? and e4=? and winner=? and turnover=? and increase=? and buy_or_follow=?', [e1,e2,e3,e4,profit,turnover,increase,buy_or_follow], orderBy='date desc', limit=((page-1)*configs.stock.stock_detail_items_on_page, configs.stock.stock_detail_items_on_page))
+    all_stock_success_details = await StockSuccessDetail.findAll('e1=? and e2=? and e3=? and e4=? and winner=? and turnover=? and increase=? and buy_or_follow=?', [e1,e2,e3,e4,profit,turnover,increase,buy_or_follow])
+    return {
+        '__template__': 'stock_success_detail.html',
+        'amount': len(all_stock_success_details),
+        'items_on_page': configs.stock.stock_detail_items_on_page,
+        'stock_success_details': stock_success_details,
+        'e1':e1,
+        'e2':e2,
+        'e3':e3,
+        'e4':e4,
+        'winner':profit,
+        'turnover':turnover,
+        'increase':increase,
+        'buy_or_follow':buy_or_follow,
+        'page': page
+    }
 
 @asyncio.coroutine
 @get('/profit_rank')
