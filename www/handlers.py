@@ -2332,9 +2332,11 @@ async def handle_prob_statistical(request, date):
     }
 
 def get_may_buy(e1, e2, e3, e4, all_result, profit_result, turnover_result, increase_result, all_denominator, buy_or_follow):
-    if all_result > 0.9 and profit_result > 0.9 and turnover_result > 0.9 and increase_result > 0.9:
+    if all_result == 1 and profit_result > 0.8 and turnover_result > 0.8 and increase_result > 0.8 and all_denominator >= 17:
+        may_buy = '<span class="uk-badge uk-badge-danger">全仓买入</span>'
+    elif all_result > 0.9 and profit_result > 0.9 and turnover_result > 0.9 and increase_result > 0.9:
         if all_denominator > 37:
-            may_buy = '<span class="uk-badge uk-badge-danger">加上所有杠杆买入</span>'
+            may_buy = '<span class="uk-badge uk-badge-danger">全仓买入</span>'
         elif all_denominator > 10:
             may_buy = '<span class="uk-badge uk-badge-danger">可以买入1/4仓</span>'
         else:
