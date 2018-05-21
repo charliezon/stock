@@ -2341,6 +2341,8 @@ def get_may_buy(e1, e2, e3, e4, all_result, profit_result, turnover_result, incr
             may_buy = '<span class="uk-badge uk-badge-danger">可以买入1/4仓</span>'
         else:
             may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/32仓</span>'
+    elif all_result > 0.9 and profit_result > 0.8 and turnover_result > 0.8 and increase_result > 0.8 and all_denominator >= 25:
+        may_buy = '<span class="uk-badge uk-badge-danger">可以买入1/2仓</span>'
     elif all_result > 0.9 and profit_result > 0.7 and turnover_result > 0.7 and increase_result > 0.8 and all_denominator > 10:
         if e1 == 1 and (e3 == 1 or e4 == 1):
             may_buy = '<span class="uk-badge uk-badge-warning">可以买入1/8仓</span>'
