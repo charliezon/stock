@@ -48,7 +48,7 @@ conn= MySQLdb.connect(
         )
 cur = conn.cursor()
 
-cache = load_cache('data/cache_1.034_0.905.json')
+cache = load_cache('data/cache_fa_1.034_0.905_b_1.04_0.905.json')
 
 id = 1
 
@@ -120,7 +120,7 @@ for key in cache:
         cur.execute(sqli , (str(id), e1, e2, e3, e4, profit_sign, turnover_sign, increase_sign, buy_or_follow, win_percent, lose_percent, lose_cache, days, all_numerator, all_denominator, all_result, profit_numerator, profit_denominator, profit_result, turnover_numerator, turnover_denominator, turnover_result, increase_numerator, increase_denominator, increase_result))
         id += 1
 
-stock_detail = load_cache('data/list_1.034_0.905.json')
+stock_detail = load_cache('data/list_fa_1.034_0.905_b_1.04_0.905.json')
 
 id = 0
 for stock in stock_detail:
